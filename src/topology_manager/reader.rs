@@ -113,6 +113,31 @@ pub struct RouterRead {
 }
 
 impl RouterRead {
+    /// Evidence that this process read before: a Studio snapshot or the last cycle. The
+    /// caller states the router, a positive generation, and the age limit. No row leaves.
+    pub(super) fn from_tables(
+        router_id: &str,
+        generation: u64,
+        tables: BTreeMap<Table, Vec<RosRow>>,
+        max_age: Duration,
+    ) -> Result<Self, ReadError> {
+        if router_id.trim().is_empty() || generation == 0 || max_age.is_zero() {
+            return Err(protocol(
+                "kept evidence needs a router, a generation, and an age",
+            ));
+        }
+        for rows in tables.values() {
+            index_rows(rows)?;
+        }
+        Ok(Self {
+            router_id: router_id.into(),
+            generation,
+            expires: Instant::now()
+                .checked_add(max_age)
+                .ok_or_else(|| protocol("evidence age exceeds clock range"))?,
+            tables,
+        })
+    }
     pub(super) fn tables(&self) -> impl Iterator<Item = Table> + '_ {
         self.tables.keys().copied()
     }

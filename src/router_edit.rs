@@ -2,7 +2,7 @@
 //! It uses the TUI Settings path: the draft, the validation, and the apply with its backup and
 //! secret rollback. Then it signals a reload and appends one audit line without secret values.
 use crate::cli::config_digest;
-use crate::config::Config;
+use crate::config::{Config, DEFAULT_PROFILE};
 use crate::topology_manager::policy_draft::router_id;
 use crate::tui::settings::apply::{ApplyError, apply};
 use crate::tui::settings::draft::{Draft, Seg, valid_router_name};
@@ -14,6 +14,7 @@ use web_contract::routers::{
     MAX_CA_PEM, MAX_CLIENTS, MAX_LIST, MAX_PASSWORD, MAX_SERVERS, RouterEditOutcome,
     RouterEditReply, RouterEditRequest, RouterEvent,
 };
+use web_contract::source_studio::{AccessProfileEdit, MAX_ACCESS_PROFILES};
 
 pub const AUDIT: &str = "router-audit.jsonl";
 const AUDIT_MAX: u64 = 1024 * 1024;
@@ -25,12 +26,12 @@ fn invalid(m: impl Into<String>) -> Fail {
 }
 
 /// A host name or an IP address: no spaces, no control characters, no URL syntax.
-fn valid_address(a: &str) -> bool {
+pub(crate) fn valid_address(a: &str) -> bool {
     (1..=253).contains(&a.len())
         && a.bytes()
             .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'-' | b':'))
 }
-fn valid_user(u: &str) -> bool {
+pub(crate) fn valid_user(u: &str) -> bool {
     (1..=64).contains(&u.len()) && !u.chars().any(|c| c.is_control() || c.is_whitespace())
 }
 
@@ -111,6 +112,154 @@ fn put(
         .set(&key(i, parts), v)
         .map_err(|err| ("internal", format!("{err:#}")))?;
     changes.push(label.to_string());
+    Ok(())
+}
+
+struct Profiles<'a> {
+    i: usize,
+    list: &'a [AccessProfileEdit],
+    saved: &'a [crate::config::AccessProfileCfg],
+    edit: &'a web_contract::routers::RouterEdit,
+    name: &'a str,
+    dir: &'a Path,
+    password_file: &'a Path,
+    /// The router has no `password_file` key yet.
+    first_password: bool,
+}
+
+fn valid_secret(p: &str) -> bool {
+    !p.is_empty() && p.chars().count() <= MAX_PASSWORD && !p.chars().any(char::is_control)
+}
+
+/// A present list replaces all access profiles. `default` is the router credential; the other
+/// profiles keep their secret when the password is absent. The config rules check the rest.
+fn profiles(
+    draft: &mut Draft,
+    changes: &mut Vec<String>,
+    pending: &mut Vec<Pending>,
+    p: Profiles,
+) -> Result<(), Fail> {
+    let internal = |m: String| ("internal", m);
+    if p.list.len() > MAX_ACCESS_PROFILES {
+        return Err(invalid(format!(
+            "Use at most {MAX_ACCESS_PROFILES} access profiles."
+        )));
+    }
+    if p.list
+        .iter()
+        .any(|x| x.password.as_ref().is_some_and(|s| !valid_secret(&s.0)))
+    {
+        return Err(invalid(
+            "Use a credential of 1 to 256 characters, without line breaks.",
+        ));
+    }
+    let (defaults, extra): (Vec<_>, Vec<_>) = p.list.iter().partition(|x| x.id == DEFAULT_PROFILE);
+    if let [d] = defaults.as_slice() {
+        if p.edit.username.is_some() || p.edit.password.is_some() {
+            return Err(invalid(
+                "Change the router credential in the default profile or in the connection, not both.",
+            ));
+        }
+        if !d.supported_writes.is_empty() {
+            return Err(invalid(
+                "The default profile is for reads. The WAN writer keeps its own credential.",
+            ));
+        }
+        if !valid_user(&d.username) {
+            return Err(invalid("Check the username of the default profile."));
+        }
+        put(
+            draft,
+            changes,
+            p.i,
+            &["username"],
+            Value::from(d.username.as_str()),
+            "username",
+        )?;
+        if let Some(secret) = &d.password {
+            if p.first_password {
+                put(
+                    draft,
+                    changes,
+                    p.i,
+                    &["password_file"],
+                    Value::from(p.password_file.to_string_lossy().as_ref()),
+                    "password_file",
+                )?;
+            }
+            pending.push(Pending {
+                path: p.password_file.to_path_buf(),
+                value: Secret::new(secret.0.clone()),
+            });
+            changes.push("credential".into());
+        }
+    } else if defaults.len() > 1 {
+        return Err(invalid("The default profile is in the list twice."));
+    }
+    let mut array = toml_edit::Array::new();
+    for x in &extra {
+        let file = match (&x.password, p.saved.iter().find(|s| s.id == x.id)) {
+            (Some(secret), _) => {
+                // The ID is checked here as well: it becomes part of a file name.
+                let safe = (1..=32).contains(&x.id.len())
+                    && x.id
+                        .bytes()
+                        .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-');
+                if !safe {
+                    return Err(invalid(format!(
+                        "Profile \"{}\": use 1 to 32 of a-z, 0-9, or - for the ID.",
+                        x.id
+                    )));
+                }
+                let file = p
+                    .dir
+                    .join("secrets")
+                    .join(format!("{}.{}.password", p.name, x.id));
+                pending.push(Pending {
+                    path: file.clone(),
+                    value: Secret::new(secret.0.clone()),
+                });
+                file.to_string_lossy().into_owned()
+            }
+            (None, Some(saved)) => saved.password_file.clone(),
+            (None, None) => {
+                return Err(invalid(format!(
+                    "Profile \"{}\" is new: it needs a credential.",
+                    x.id
+                )));
+            }
+        };
+        let mut writes = toml_edit::Array::new();
+        for w in &x.supported_writes {
+            let name = serde_json::to_value(w).map_err(|err| internal(err.to_string()))?;
+            writes.push(name.as_str().unwrap_or_default());
+        }
+        let mut t = toml_edit::InlineTable::new();
+        t.insert("id", x.id.as_str().into());
+        t.insert("label", x.label.as_str().into());
+        t.insert("username", x.username.as_str().into());
+        t.insert("password_file", file.into());
+        t.insert("supported_writes", Value::Array(writes));
+        array.push(Value::InlineTable(t));
+    }
+    if array.is_empty() {
+        draft
+            .reset(&key(p.i, &["access_profiles"]))
+            .map_err(|err| internal(format!("{err:#}")))?;
+        changes.push("access_profiles".into());
+    } else {
+        put(
+            draft,
+            changes,
+            p.i,
+            &["access_profiles"],
+            Value::Array(array),
+            "access_profiles",
+        )?;
+    }
+    if extra.iter().any(|x| x.password.is_some()) {
+        changes.push("profile_credential".into());
+    }
     Ok(())
 }
 
@@ -342,6 +491,27 @@ pub fn edit(
             value: Secret::new(p.clone()),
         });
         changes.push("credential".into());
+    }
+    if let Some(list) = &e.access_profiles {
+        profiles(
+            &mut draft,
+            &mut changes,
+            &mut pending,
+            Profiles {
+                i,
+                list,
+                saved: if action == "create" {
+                    &[]
+                } else {
+                    &cfg.routers[i].access_profiles
+                },
+                edit: e,
+                name: &name,
+                dir,
+                password_file: &password_file,
+                first_password: action == "update" && cfg.routers[i].password_file.is_empty(),
+            },
+        )?;
     }
     if let Some(pem) = &e.ca_pem {
         // The same parse as the TLS client of the service: each certificate must enter a root store.
@@ -659,6 +829,7 @@ mod tests {
     use super::*;
     use std::os::unix::fs::PermissionsExt;
     use web_contract::routers::RouterEdit;
+    use web_contract::source_studio::{AccessProfileEdit, SecretInput, WriteScope};
 
     // A self-signed test certificate, not a production CA.
     const PEM: &str = "-----BEGIN CERTIFICATE-----\nMIIBiDCCAS+gAwIBAgIUZf3VepY3yl6fqQAXCeWnrnJdMQAwCgYIKoZIzj0EAwIw\nGjEYMBYGA1UEAwwPbHFvc3luYy10ZXN0LWNhMB4XDTI2MTEyMTAxMTA1MFoXDTM2\nMTExODAxMTA1MFowGjEYMBYGA1UEAwwPbHFvc3luYy10ZXN0LWNhMFkwEwYHKoZI\nzj0CAQYIKoZIzj0DAQcDQgAEopy7BPMP9XGreg2+s3awmsQjv7+yOFyriXzeFREP\nHWWp9fCAugr5nkYVf2mIIzpoTKtRbVwt5TwDPSlYcdqAJaNTMFEwHQYDVR0OBBYE\nFLTiCxN+BFvd4hOLc39oYBeVPD13MB8GA1UdIwQYMBaAFLTiCxN+BFvd4hOLc39o\nYBeVPD13MA8GA1UdEwEB/wQFMAMBAf8wCgYIKoZIzj0EAwIDRwAwRAIgWub+R96Z\nb8bJ98ZcUIjLtVUaF7ubS4pZM1+s2d55bSkCIAGQqvndr+Plh3nV08g1QAIznnuf\npYwrUvqbP7BJuqTZ\n-----END CERTIFICATE-----\n";
@@ -746,6 +917,145 @@ mod tests {
 
     fn edit_ok(e: &Env, id: Option<&str>, change: RouterEdit) -> RouterEditReply {
         edit(&e.config, &request(id, change), 1_000, me(), &no_reload).unwrap()
+    }
+
+    fn profile(id: &str, username: &str, password: Option<&str>) -> AccessProfileEdit {
+        AccessProfileEdit {
+            id: id.into(),
+            label: format!("Profile {id}"),
+            username: username.into(),
+            password: password.map(|p| SecretInput(p.into())),
+            supported_writes: vec![],
+        }
+    }
+
+    fn profiles_edit(e: &Env, list: Vec<AccessProfileEdit>) -> RouterEdit {
+        RouterEdit {
+            expected_digest: digest(e),
+            access_profiles: Some(list),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn access_profiles_save_their_secrets_and_keep_an_absent_password() {
+        let e = env();
+        let id = router_id("R1");
+        let mut reader = profile("reader", "ro", Some("reader-secret"));
+        reader.supported_writes = vec![WriteScope::WanAddressLists];
+        edit_ok(
+            &e,
+            Some(&id),
+            profiles_edit(&e, vec![profile("default", "api", None), reader]),
+        );
+        let load = || Config::from_toml_str(&std::fs::read_to_string(&e.config).unwrap()).unwrap();
+        let cfg = load();
+        let r1 = &cfg.routers[0];
+        assert_eq!(r1.username, "api");
+        assert_eq!(r1.access_profiles.len(), 1);
+        let p = &r1.access_profiles[0];
+        assert_eq!((p.id.as_str(), p.username.as_str()), ("reader", "ro"));
+        assert_eq!(p.supported_writes, [WriteScope::WanAddressLists]);
+        let file = e.dir.path().join("secrets/R1.reader.password");
+        assert_eq!(Path::new(&p.password_file), file.as_path());
+        assert_eq!(
+            std::fs::read_to_string(&file).unwrap().trim_end(),
+            "reader-secret"
+        );
+        assert_eq!(
+            std::fs::metadata(&file).unwrap().permissions().mode() & 0o077,
+            0
+        );
+        assert_eq!(
+            std::fs::read_to_string(e.dir.path().join("secrets/R1.password"))
+                .unwrap()
+                .trim_end(),
+            "old",
+            "the default credential stays"
+        );
+        assert!(!cfg.wan_writer.enabled);
+        // An absent password keeps the saved secret of that profile.
+        let mut renamed = profile("reader", "ro2", None);
+        renamed.label = "Read only".into();
+        edit_ok(&e, Some(&id), profiles_edit(&e, vec![renamed]));
+        let cfg = load();
+        assert_eq!(cfg.routers[0].access_profiles[0].label, "Read only");
+        assert_eq!(
+            cfg.routers[0].username, "api",
+            "an absent default keeps the credential"
+        );
+        assert_eq!(
+            std::fs::read_to_string(&file).unwrap().trim_end(),
+            "reader-secret"
+        );
+        // An empty list removes every extra profile; the router credential stays.
+        edit_ok(&e, Some(&id), profiles_edit(&e, vec![]));
+        let cfg = load();
+        assert!(cfg.routers[0].access_profiles.is_empty());
+        assert_eq!(
+            cfg.routers[0].profile_credential("default").map(|c| c.0),
+            Some("api")
+        );
+        let log = std::fs::read_to_string(e.dir.path().join("state").join(AUDIT)).unwrap();
+        assert!(log.contains("access_profiles"), "{log}");
+        assert!(!log.contains("reader-secret"), "{log}");
+    }
+
+    #[test]
+    fn a_default_profile_password_replaces_the_router_credential() {
+        let e = env();
+        let id = router_id("R1");
+        edit_ok(
+            &e,
+            Some(&id),
+            profiles_edit(&e, vec![profile("default", "u", Some("new-default"))]),
+        );
+        assert_eq!(
+            std::fs::read_to_string(e.dir.path().join("secrets/R1.password"))
+                .unwrap()
+                .trim_end(),
+            "new-default"
+        );
+    }
+
+    #[test]
+    fn access_profile_edits_refuse_unsafe_input_without_changes() {
+        let e = env();
+        let id = router_id("R1");
+        let before = std::fs::read_to_string(&e.config).unwrap();
+        let mut writes_default = profile("default", "u", None);
+        writes_default.supported_writes = vec![WriteScope::WanAddressLists];
+        let cases: Vec<(Vec<AccessProfileEdit>, Option<&str>)> = vec![
+            (vec![profile("reader", "ro", None)], None),
+            (
+                vec![profile("default", "a", None), profile("default", "b", None)],
+                None,
+            ),
+            (vec![writes_default], None),
+            (vec![profile("default", "a", None)], Some("other-user")),
+            (
+                (0..8)
+                    .map(|i| profile(&format!("p{i}"), "ro", Some("x")))
+                    .collect(),
+                None,
+            ),
+            (vec![profile("BAD id", "ro", Some("x"))], None),
+            (vec![profile("reader", "ro", Some("two\nlines"))], None),
+        ];
+        for (list, username) in cases {
+            let mut change = profiles_edit(&e, list.clone());
+            change.username = username.map(Into::into);
+            let r = edit(
+                &e.config,
+                &request(Some(&id), change),
+                1_000,
+                me(),
+                &no_reload,
+            );
+            assert_eq!(r.as_ref().map_err(|f| f.0), Err("invalid"), "{list:?}");
+            assert_eq!(std::fs::read_to_string(&e.config).unwrap(), before);
+        }
+        assert!(!e.dir.path().join("secrets/R1.p0.password").exists());
     }
 
     #[test]

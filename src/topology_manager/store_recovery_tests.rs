@@ -586,7 +586,7 @@ fn schema_7_registry_migrates_to_8_without_change() {
 }
 
 #[test]
-fn schema_8_migrates_to_9_without_change() {
+fn schema_8_migrates_to_current_without_change() {
     let root = tempfile::tempdir().unwrap();
     drop(RegistryStore::open(root.path()).unwrap());
     let mut old = serde_json::to_value(RegistryDocument {
@@ -599,7 +599,7 @@ fn schema_8_migrates_to_9_without_change() {
     crate::files::write_secret(&primary(root.path()), &serde_json::to_vec(&old).unwrap()).unwrap();
     let store = RegistryStore::open(root.path()).unwrap();
     let doc = store.document().unwrap();
-    assert_eq!(doc.schema_version, 9);
+    assert_eq!(doc.schema_version, 10);
     assert_eq!(
         doc.catalog,
         Some(crate::topology_manager::catalog::tests::catalog())
@@ -608,4 +608,55 @@ fn schema_8_migrates_to_9_without_change() {
     old["catalog"]["sources"][0]["excluded"] = true.into();
     crate::files::write_secret(&primary(root.path()), &serde_json::to_vec(&old).unwrap()).unwrap();
     assert!(RegistryStore::open(root.path()).is_err());
+}
+
+#[test]
+fn schema_9_migrates_to_10_and_keeps_legacy_sources() {
+    let root = tempfile::tempdir().unwrap();
+    drop(RegistryStore::open(root.path()).unwrap());
+    let mut old = serde_json::to_value(RegistryDocument {
+        revision: 3,
+        catalog: Some(crate::topology_manager::catalog::tests::catalog()),
+        ..RegistryDocument::default()
+    })
+    .unwrap();
+    old["schema_version"] = 9.into();
+    // A schema-10 router without policies serializes as a schema-9 router.
+    assert!(
+        old["catalog"]["routers"][0]
+            .get("source_policies")
+            .is_none()
+    );
+    crate::files::write_secret(&primary(root.path()), &serde_json::to_vec(&old).unwrap()).unwrap();
+    let store = RegistryStore::open(root.path()).unwrap();
+    let doc = store.document().unwrap();
+    assert_eq!((doc.schema_version, doc.revision), (10, 3));
+    // None keeps the current (legacy) source behavior: the sources stay as they were.
+    assert_eq!(
+        doc.catalog,
+        Some(crate::topology_manager::catalog::tests::catalog())
+    );
+    assert!(
+        doc.catalog
+            .as_ref()
+            .unwrap()
+            .routers
+            .iter()
+            .all(|r| r.source_policies.is_none())
+    );
+    drop(store);
+    // A schema-9 file cannot hold a policy set or a WAN decision.
+    for (field, value) in [
+        ("source_policies", serde_json::json!([])),
+        (
+            "wan_decisions",
+            serde_json::json!([{"interface": "ether1", "decision": "pin"}]),
+        ),
+    ] {
+        let mut bad = old.clone();
+        bad["catalog"]["routers"][0][field] = value;
+        crate::files::write_secret(&primary(root.path()), &serde_json::to_vec(&bad).unwrap())
+            .unwrap();
+        assert!(RegistryStore::open(root.path()).is_err(), "{field}");
+    }
 }

@@ -110,11 +110,13 @@ pub(crate) fn catalog() -> TopologyCatalog {
                 id: "core".into(),
                 name: "Core".into(),
                 roles: vec![RouterRole::Wan],
+                ..Default::default()
             },
             CatalogRouter {
                 id: "distro".into(),
                 name: "Distro".into(),
                 roles: vec![RouterRole::Ppp, RouterRole::Dhcp, RouterRole::Hotspot],
+                ..Default::default()
             },
         ],
         sources: vec![
@@ -479,6 +481,7 @@ fn a_large_catalog_uses_iterative_validation() {
         id: "distro".into(),
         name: "Distro".into(),
         roles: vec![RouterRole::Ppp],
+        ..Default::default()
     });
     c.sources.push(CatalogSource {
         excluded: false,

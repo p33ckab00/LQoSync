@@ -11,7 +11,7 @@ use web_contract::routers::{
 };
 
 /// A configured file exists and is not empty. The content is never read.
-fn configured(path: &str) -> bool {
+pub(crate) fn configured(path: &str) -> bool {
     !path.is_empty() && std::fs::metadata(path).is_ok_and(|m| m.is_file() && m.len() > 0)
 }
 
@@ -234,6 +234,7 @@ mod tests {
                 id: crate::topology_manager::policy_draft::router_id("Core"),
                 name: "Core".into(),
                 roles: vec![],
+                ..Default::default()
             }],
             sources: vec![CatalogSource {
                 excluded: false,

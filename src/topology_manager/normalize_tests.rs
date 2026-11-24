@@ -37,6 +37,7 @@ async fn evidence(rows: Rows, roles: &[RouterRole]) -> RouterRead {
             id: "router-a".into(),
             name: "Router".into(),
             roles: roles.into(),
+            ..Default::default()
         }],
         ..Default::default()
     };

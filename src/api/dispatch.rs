@@ -33,6 +33,49 @@ struct RouterTestArgs {
     actor: String,
 }
 
+/// `source_studio.test`. The arguments carry a draft secret: a refusal never repeats them.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SourceTestArgs {
+    connection: web_contract::source_studio::DraftConnection,
+    required_sources: Vec<web_contract::source_studio::SourceKind>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SourceEvaluateArgs {
+    actor: String,
+    router_id: String,
+    expected_revision: String,
+    expected_config_digest: String,
+    snapshot_id: String,
+    policies: Vec<web_contract::source_studio::SourcePolicyDraft>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SourceCandidateArgs {
+    actor: String,
+    id: String,
+    part: String,
+    #[serde(default)]
+    cursor: Option<String>,
+    #[serde(default = "page_limit")]
+    limit: u16,
+}
+
+fn page_limit() -> u16 {
+    web_contract::source_studio::PAGE_DEFAULT
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SourceCollectArgs {
+    router_id: String,
+    expected_config_digest: String,
+    sources: Vec<web_contract::source_studio::SourceKind>,
+}
+
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct WanDiscoverArgs {
@@ -155,6 +198,44 @@ where
             runner
                 .api_router_test(&args.router_id, &args.actor)
                 .await
+                .map_err(fail)
+        }
+        "source_studio.capabilities" => {
+            serde_json::to_value(crate::topology_manager::source_studio::capabilities())
+                .map_err(|e| fail(e.into()))
+        }
+        "source_studio.test" => {
+            let a: SourceTestArgs = serde_json::from_value(request.args.clone())
+                .map_err(|_| ApiError::new(ErrorCode::BadRequest, "invalid arguments"))?;
+            runner
+                .api_source_test(&a.connection, &a.required_sources)
+                .await
+                .map_err(fail)
+        }
+        "source_studio.collect" => {
+            let a: SourceCollectArgs = parse(request)?;
+            runner
+                .api_source_collect(&a.router_id, &a.expected_config_digest, &a.sources)
+                .await
+                .map_err(fail)
+        }
+        "source_studio.evaluate" => {
+            let a: SourceEvaluateArgs = parse(request)?;
+            runner
+                .api_source_evaluate(
+                    &a.actor,
+                    &a.router_id,
+                    &a.expected_revision,
+                    &a.expected_config_digest,
+                    &a.snapshot_id,
+                    &a.policies,
+                )
+                .map_err(fail)
+        }
+        "source_studio.candidate" => {
+            let a: SourceCandidateArgs = parse(request)?;
+            runner
+                .api_source_candidate(&a.actor, &a.id, &a.part, a.cursor.as_deref(), a.limit)
                 .map_err(fail)
         }
         "topology.tree" => runner.api_tree().map_err(fail),

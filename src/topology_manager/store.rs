@@ -669,10 +669,28 @@ fn load(path: &Path) -> anyhow::Result<Option<LoadedDocument>> {
                         && c.nodes.iter().all(|n| !n.tree_excluded)),
                 "a schema-8 registry cannot contain exclusion flags"
             );
+            ensure!(
+                no_studio_policy(&old),
+                "a schema-8 registry cannot contain source policies"
+            );
             old.schema_version = SCHEMA;
             old
         }
-        SCHEMA => serde_json::from_slice(&bytes).context("cannot decode schema-9 registry")?,
+        9 => {
+            let mut old: RegistryDocument =
+                serde_json::from_slice(&bytes).context("cannot decode schema-9 registry")?;
+            ensure!(
+                old.schema_version == 9,
+                "registry schema changed during load"
+            );
+            ensure!(
+                no_studio_policy(&old),
+                "a schema-9 registry cannot contain source policies"
+            );
+            old.schema_version = SCHEMA;
+            old
+        }
+        SCHEMA => serde_json::from_slice(&bytes).context("cannot decode schema-10 registry")?,
         _ => anyhow::bail!("unsupported subscriber registry schema"),
     };
     let mut document = document;
@@ -692,6 +710,14 @@ fn load(path: &Path) -> anyhow::Result<Option<LoadedDocument>> {
         disk_schema: header.schema_version,
         bytes,
     }))
+}
+
+/// Schema 10 added router source policies and WAN decisions. An older file has neither.
+fn no_studio_policy(doc: &RegistryDocument) -> bool {
+    doc.catalog
+        .iter()
+        .flat_map(|c| &c.routers)
+        .all(|r| r.source_policies.is_none() && r.wan_decisions.is_empty())
 }
 
 #[cfg(test)]
@@ -880,7 +906,7 @@ mod tests {
     fn corrupt_and_future_schema_files_do_not_reset_the_store() {
         for bad in [
             "{",
-            r#"{"schema_version":10,"revision":0,"next_id":1,"subscribers":[]}"#,
+            r#"{"schema_version":11,"revision":0,"next_id":1,"subscribers":[]}"#,
             r#"{"schema_version":1,"revision":0,"next_id":1,"subscribers":[],"ips":[]}"#,
         ] {
             let dir = tempfile::tempdir().unwrap();
@@ -1133,7 +1159,7 @@ mod tests {
         for text in [
             r#"{"schema_version":1,"revision":0,"revision":1,"next_id":1,"subscribers":[]}"#,
             r#"{"schema_version":1,"revision":0,"next_id":1,"subscribers":[],"catalog":null}"#,
-            r#"{"schema_version":10,"revision":0,"next_id":1,"subscribers":[]}"#,
+            r#"{"schema_version":11,"revision":0,"next_id":1,"subscribers":[]}"#,
         ] {
             let dir = tempfile::tempdir().unwrap();
             drop(RegistryStore::open(dir.path()).unwrap());

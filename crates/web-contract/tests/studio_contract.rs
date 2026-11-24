@@ -153,7 +153,11 @@ fn every_policy_variant_round_trips() {
         {"kind": "profile_map", "bindings": binding},
         {"kind": "server_map", "bindings": binding},
         {"kind": "profile_rate_limit"},
-        {"kind": "fallback", "plan_id": "plan-1"}
+        {"kind": "fallback", "plan_id": "plan-1"},
+        {"kind": "profile_comment", "format": "legacy_configured"},
+        {"kind": "profile_name"},
+        {"kind": "server_comment", "format": "legacy_configured"},
+        {"kind": "settings"}
     ]);
     let capacities = [
         json!({"kind": "from_plans", "down_factor": "0.5", "up_factor": "1", "minimum_down_bps": "0", "minimum_up_bps": "0"}),

@@ -40,7 +40,7 @@ fn token(h: &HeaderMap) -> &str {
 fn same_origin(s: &WebState, h: &HeaderMap) -> bool {
     h.get(header::ORIGIN).and_then(|v| v.to_str().ok()) == Some(&s.origin)
 }
-async fn principal(s: &WebState, h: &HeaderMap) -> Result<Session, StatusCode> {
+pub(crate) async fn principal(s: &WebState, h: &HeaderMap) -> Result<Session, StatusCode> {
     let sessions = s.sessions.clone();
     let key = token(h).to_owned();
     let record = tokio::task::spawn_blocking(move || sessions.get(&key))
@@ -173,7 +173,7 @@ async fn routers(State(s): State<WebState>, h: HeaderMap) -> ApiResult {
     Ok(Json(inventory).into_response())
 }
 /// A state-changing request: same origin, a current session, and its CSRF token.
-async fn writer(s: &WebState, h: &HeaderMap) -> Result<Session, StatusCode> {
+pub(crate) async fn writer(s: &WebState, h: &HeaderMap) -> Result<Session, StatusCode> {
     if !same_origin(s, h) {
         return Err(StatusCode::FORBIDDEN);
     }
@@ -184,7 +184,7 @@ async fn writer(s: &WebState, h: &HeaderMap) -> Result<Session, StatusCode> {
     Ok(p)
 }
 /// A router ID from the inventory: `lq3-` and hex digits.
-fn router_id(id: &str) -> bool {
+pub(crate) fn router_id(id: &str) -> bool {
     id.len() <= 64 && id.starts_with("lq3-") && id[4..].bytes().all(|b| b.is_ascii_hexdigit())
 }
 /// Save a local router change. The core command checks and writes it; no router I/O.
@@ -293,6 +293,14 @@ async fn journal(
         .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
     Ok(Json(reply.journal.ok_or(StatusCode::SERVICE_UNAVAILABLE)?).into_response())
 }
+/// `GET /api/v1/topology/throughput`: live rates by placement, from service caches only.
+async fn topology_throughput(State(s): State<WebState>, h: HeaderMap) -> ApiResult {
+    principal(&s, &h).await?;
+    let reply = exchange(&s.broker, &BrokerRequest::TopologyThroughput)
+        .await
+        .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    Ok(Json(reply.throughput.ok_or(StatusCode::NOT_FOUND)?).into_response())
+}
 /// A topology read from the service cache. It starts no router I/O and no mutation.
 async fn topology_read(s: &WebState, h: &HeaderMap, read: crate::topology::Read) -> ApiResult {
     use web_contract::topology::TopologyReply;
@@ -315,7 +323,7 @@ async fn topology_read(s: &WebState, h: &HeaderMap, read: crate::topology::Read)
     )
 }
 /// Send one queue request to the broker: `202` with the operation and its URL, or the refusal.
-async fn queued(s: &WebState, request: &BrokerRequest) -> ApiResult {
+pub(crate) async fn queued(s: &WebState, request: &BrokerRequest) -> ApiResult {
     let reply = exchange(&s.broker, request)
         .await
         .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
@@ -627,12 +635,21 @@ pub fn router(state: WebState, dist: PathBuf) -> Router {
                 .layer(DefaultBodyLimit::max(64 * 1024)),
         )
         .route("/api/v1/routers/{id}/activity", get(router_activity))
+        .route(
+            "/api/v1/routers/{id}/source-config",
+            get(crate::source_studio::config),
+        )
         .route("/api/v1/routers/{id}/test", post(test_router))
         .route("/api/v1/routers/sync", post(sync_routers))
         .route("/api/v1/topology", get(topology))
+        .route("/api/v1/topology/throughput", get(topology_throughput))
         .route("/api/v1/topology/proposals", post(topology_propose))
         .route("/api/v1/topology/reads", post(topology_reads))
-        .route("/api/v1/topology/edits", post(topology_edit))
+        // A source policy set is larger than other edits; other routes keep 4 KiB.
+        .route(
+            "/api/v1/topology/edits",
+            post(topology_edit).layer(DefaultBodyLimit::max(32 * 1024)),
+        )
         .route("/api/v1/topology/layout", put(topology_layout))
         .route(
             "/api/v1/topology/proposals/{key}/confirm",
@@ -643,6 +660,28 @@ pub fn router(state: WebState, dist: PathBuf) -> Router {
             post(topology_cancel),
         )
         .route("/api/v1/topology/operations/{key}", get(topology_operation))
+        .route(
+            "/api/v1/topology/source-candidates/{id}",
+            get(crate::source_studio::candidate),
+        )
+        .route(
+            "/api/v1/topology/source-candidates/{id}/records",
+            get(crate::source_studio::candidate_records),
+        )
+        .route(
+            "/api/v1/topology/source-candidates/{id}/issues",
+            get(crate::source_studio::candidate_issues),
+        )
+        .route(
+            "/api/v1/topology/source-capabilities",
+            get(crate::source_studio::capabilities),
+        )
+        .route(
+            "/api/v1/topology/source-jobs",
+            post(crate::source_studio::jobs).layer(DefaultBodyLimit::max(
+                web_contract::source_studio::MAX_JOB_BODY,
+            )),
+        )
         .route("/api/v1/topology/assignments", get(topology_assignments))
         .route("/api/v1/topology/observations", get(topology_observations))
         .route(

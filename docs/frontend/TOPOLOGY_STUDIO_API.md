@@ -1,7 +1,8 @@
 # Topology Studio: frontend and backend contract
 
 Status: contract version 1 types exist since task B0 in `crates/web-contract/src/source_studio.rs`.
-No production route or service operation exists yet. The browser fixture serves the new HTTP shapes.
+Since task B3, the production service has all new routes and the three jobs (`draft_test`, `collect`, `evaluate`).
+It advertises `draft_test`, `access_profiles`, `source_collect`, `wan_evidence`, `policy_preview`, and (since task B4) `policy_save`. The browser fixture serves all new HTTP shapes.
 The [product design](ROUTER_SOURCE_CONFIGURATION.md) defines the required behavior.
 The [tandem plan](../superpowers/plans/2026-11-23-topology-studio-tandem.md) assigns the work.
 
@@ -133,7 +134,7 @@ Missing active endpoints do not authorize invented addresses or identity records
 | `FilterValue` | Tagged enum: `text { value: String }`, `texts { values: Vec<String> }` |
 | `GroupRule` | Tagged enum: `by_field { field }`, `fixed { name }`, `attach { node_id }` |
 | `ParentRule` | Tagged enum: `router`, `node { node_id }` |
-| `RateSource` | Tagged enum: `subscriber_override`, `account_comment`, `active_comment`, `profile_map`, `server_map`, `profile_rate_limit`, `fallback` |
+| `RateSource` | Tagged enum: `subscriber_override`, `account_comment`, `active_comment`, `profile_map`, `server_map`, `profile_rate_limit`, `fallback`, `profile_comment`, `profile_name`, `server_comment`, `settings` |
 | `PlanBinding` | `{ selector: String, plan_id: String }`, exact selector match |
 | `CommentRateFormat` | `legacy_configured` only until another parser has tests |
 | `CapacityRule` | Tagged enum: `from_plans { down_factor, up_factor, minimum_down_bps, minimum_up_bps }` or `fixed { down_bps, up_bps }` |
@@ -141,7 +142,8 @@ Missing active endpoints do not authorize invented addresses or identity records
 | `WriteGrant` | `{ access_ref, scope: WriteScope, enabled: bool }` |
 
 Use `kind` as the serde tag for these supporting enums.
-`account_comment` and `active_comment` carry `format: CommentRateFormat`.
+`account_comment`, `active_comment`, `profile_comment`, and `server_comment` carry `format: CommentRateFormat`.
+`profile_name` uses the configured `profile_name_regex`. `settings` is the configured default rate of the source. Task B3 added these four kinds, so that a draft can state each current engine rate order.
 `profile_map` and `server_map` carry `bindings: Vec<PlanBinding>`.
 
 `profile_rate_limit` uses the existing directional/unit parser. `fallback` carries `plan_id`.
@@ -368,7 +370,101 @@ The Rust types are the authority. This section records the decisions that the ta
 | `CandidatePageQuery.limit` | Default 50. |
 
 The core service parses `router.sources_set` and `wan.candidate_set`. It refuses both with `invalid` before any I/O until task B4 passes.
-The production gateway has no new route. A new route returns `404`, so the frontend treats the backend as an old backend.
+A route that the service does not have returns `404`, so the frontend treats that feature as unavailable. Task B1 adds the first routes.
+
+## Version 1 details from task B1
+
+| Item | Task B1 behavior |
+| --- | --- |
+| Capabilities | The gateway asks the core service operation `source_studio.capabilities`. An older service without it gives `404` with `unavailable`. |
+| Draft test | The core service operation `source_studio.test` takes `connection` and `required_sources`. The gateway job keeps a SHA-256 digest of the request, never the secret. |
+| Draft test checks | `checks` always has one entry for each of the five stages, in order. A stage after a failure is `not_run`. Without TLS, the `tls` stage is `not_run` with `tls_off`. |
+| Check codes | `ok`, `unreachable`, `tls`, `login`, `timeout`, `trap`, `protocol`, `disabled`, `tls_off`, `not_run`. |
+| Table permission | One check for all tables of `required_sources`. The first table that fails gives the code. No source gives `not_run`. |
+| Disabled router | A draft whose address is, or resolves to, an address of a disabled registered router fails `transport` with `disabled`, on any port. It makes no connection. A failed name lookup counts as no match. |
+| Fingerprint | `connection_fingerprint` names address, port, TLS settings, username, and CA text. It does not use the password. |
+| Refusal | An invalid draft gives a `failed` operation with a safe `error`. A source job without the session token gives `403`. Collection and evaluation jobs give `404` with `unavailable`. |
+| Access profiles | `RouterEdit.access_profiles` saves through the router edit and its config digest. The entry `default` changes the router credential. A new secret needs `current_password`. Profiles appear in `RouterSourceConfig` with task B2. |
+
+## Version 1 details from task B2
+
+| Item | Task B2 behavior |
+| --- | --- |
+| Source config | The service writes `source-studio.json` (`StudioCache`) after each cycle and each collection. The GET reads that cache through the broker. It sends nothing to the service and reads no router. A router without a cache entry gives `404` with `not_found`. |
+| Digests | `config_digest` is the saved file when the service wrote the cache. `loaded_config_digest` is the loaded config. |
+| Collection | The core service operation `source_studio.collect` reads the allowlisted tables of the named sources with the router credential (`default`). A disabled or unknown router, a changed loaded config, or a repeated source gives a `failed` operation with a safe `error`. It makes no connection. |
+| Table evidence | `SnapshotRef.tables` lists all 11 tables in a fixed order. Tables of other sources are `not_requested` with `collected_at: null`. A failed table keeps 0 records and an `issue_code`. |
+| Limits | More than 20,000 rows gives `partial` with `row_limit`. More than 16 MiB gives `partial` with `byte_limit`. The 60-second deadline gives `failed` with `timeout`. A row with an unrequested field gives `failed` with `protocol`. |
+| Snapshots | The service keeps the last 2 snapshots of each router in memory for 10 minutes. A restart drops them. |
+| WAN evidence | `wan_candidates` comes from the last complete interface and route reads, at most 32 interfaces and 4 default routes each. A failed or partial read keeps the last good evidence and sets `read_state`. A complete empty route table gives no routes. `decision` stays `null` until task B4. |
+| WAN discovery | The `wan.discover` answer has a new `routes_state` (`ok` or `failed`) for each router. A failed route read no longer looks like an empty route table. |
+
+## Version 1 details from task B3
+
+Owner decision: the service translates each draft into the current engine structures and runs the current engine on a clone. It has no second policy engine.
+
+| Item | Task B3 behavior |
+| --- | --- |
+| Supported drafts | PPP: one enabled policy for each router, `members: joined`, no filter, `group` by `account.profile` or `fixed`. DHCP: `members: active`, filter `lease.server` with `eq` or `in` (or none), `group` by `lease.server`, per-site servers. `read_access_ref` must be `default`: reads use the router credential. |
+| Rates | A leading `subscriber_override`, then the configured engine order of the source. The default PPP order is `account_comment`, `active_comment`, `profile_comment`, `profile_rate_limit`, `profile_name`, `settings`. The default per-site DHCP order is `server_comment`, `settings`. |
+| Capacity | `from_plans` with plan factors only. Fixed capacity and minimum rates are not supported in version 1. |
+| Other drafts | A blocker `unsupported_in_v1` with the reason, for example Hotspot (no reference authority) or WAN (use WAN decisions). |
+| Router config | The engine binds policies to the router config. A PPP policy needs `pppoe.enabled`. A DHCP policy needs `dhcp.enabled`, `require_bound = true`, and `shape_unassigned = false`. When the config lists its DHCP servers with `discover = false`, the enabled DHCP policies must name exactly those servers. Otherwise the draft is a blocker. |
+| Other blockers | `priority_overlap`, `unknown_access_profile`, `invalid_name`, `invalid_capacity`, `partial_table`, `failed_table`, `missing_ppp_join`, `collect_router_first` (another router with a selected source has no Studio snapshot), `conflict` (engine preparation conflict), `engine_refused`. |
+| Evidence | The target router uses the named snapshot. Each other router with a selected source uses its newest Studio snapshot. Only complete subscriber tables count. A snapshot of another loaded config (another `config_digest`) is refused. |
+| Engine | Current identity authorization, reconciliation, resolver, aggregate, and pair preparation (compiler admission), on a registry clone with a fresh observation gate. No router read and no durable change. |
+| Records | Records of the target router only. `identity_ref` is the engine identity. A record without a saved subscriber has `issue_codes: ["new_identity"]`. `speed_source` is `subscriber_override` for a saved subscriber plan, otherwise `null` (the engine does not report the winning source). Rates are the engine maximum rates. |
+| Graph | The web projection of the candidate. A node that the saved catalog does not have has a `draft:` ID. The diff compares catalog nodes (name and parent). |
+| Refusal | An unknown router, or an expired or foreign snapshot, gives a `failed` operation. A stale `expected_revision` gives a `failed` operation from the service conflict. A request over an input limit gives a `failed` operation. |
+| Candidate GETs | They read the service memory through the broker, with a 10-second limit. Another actor gets `404`. An expired candidate, or one from before a service restart, gets `410`. A bad cursor gets `400` with `invalid_cursor`. |
+| Cache | 10 minutes, at most 4 candidates and 64 MiB for each actor, 128 MiB in total. The oldest candidate leaves first. A page ends early at 48 KiB. |
+| Fields | `account.profile` (PPP, group only) and `lease.server` (DHCP, `eq` and `in`, group). |
+
+## Version 1 details from task B4
+
+| Item | Task B4 behavior |
+| --- | --- |
+| Registry schema | 10. `CatalogRouter.source_policies` (`None` keeps the legacy sources; `Some([])` removes every policy source of the router) and `CatalogRouter.wan_decisions`. A schema-9 file loads as schema 10 with neither field. An older binary cannot read schema 10. |
+| `router.sources_set` | Through `POST /api/v1/topology/edits` and the current receipt. Checks in this order, before any change: initialized topology (`not_initialized`), exact registry revision (conflict), loaded config digest (`stale_config_digest`), router, input limits, translation blockers, then evidence. |
+| Evidence | An enabled policy needs the newest complete Studio snapshot of the router (`collect_router_first`, `partial_table`, `missing_ppp_join`). An empty set needs none. |
+| Commit | The translated catalog sources, nodes, and selections of the router, with the policy set, in one registry commit. The next topology cycle publishes through the current publisher. The save does not run the compiler; the cycle does, and holds the output on failure. |
+| Policy IDs | A policy without `id` gets `policy-<16 hex digits>`. IDs are unique in a set. |
+| Error text | A failed receipt `error` starts with the code, for example `stale_config_digest: ...`. |
+| `wan.candidate_set` | Saves `pin` or `ignore`, or removes the entry for `clear`. At most 64 decisions for each router. It reads no router and writes no router or routing list. `RouterSourceConfig.wan_candidates[].decision` shows the saved decision. |
+| Source discovery | `source.add` refuses a source of a router that has saved policies. |
+| Body limit | `POST /api/v1/topology/edits` takes 32 KiB. Other routes keep 4 KiB. |
+
+## Live throughput (owner follow-up for the Sankey reference)
+
+`GET /api/v1/topology/throughput` returns `TopologyThroughput`. It needs the current session. The gateway joins two service caches by subscriber address: the dataplane host sample (`subscriber-telemetry.json`) and the placed subscribers of `topology.json`. It sends nothing to the service and reads no router.
+
+| Item | Behavior |
+| --- | --- |
+| `nodes[]` | `node_id`, `down_bps`, `up_bps`, `hosts`, `rtt_ms` (median). A node includes every node below it. Only nodes with sampled hosts are listed. |
+| `flows[]` | `from`, `to`, `down_bps`, `up_bps`. The keys are the same as `TopologySummary.flows`: the parent card and the child card. A Sankey ribbon can take its width from this rate and keep the subscriber count as a label. |
+| `stale` | The sample is older than 15 seconds, failed, or absent. `reason` says why. The rates are the last values or empty. |
+| `complete` | False for a stale sample, a stale placement (`observed.stale`), sampled hosts that no placed subscriber owns (`unmapped_hosts`), or a sample at its 512-row limit. |
+| Not available | Drop rate, router CPU, and queue counts. The service has no source for them for each node. Do not show an invented value. |
+| `404` | The service has written no topology view yet. |
+
+The browser fixture writes a synthetic host sample every second for its subscribers.
+
+## Service operations (task B5)
+
+The broker calls these core service operations on the service API socket. The browser cannot name an operation.
+
+| Operation | Arguments | Result |
+| --- | --- | --- |
+| `source_studio.capabilities` | none | `StudioCapabilities` |
+| `source_studio.test` | `connection`, `required_sources` | `DraftTestReport` |
+| `source_studio.collect` | `router_id`, `expected_config_digest`, `sources` | `SnapshotRef` |
+| `source_studio.evaluate` | `actor`, `router_id`, `expected_revision`, `expected_config_digest`, `snapshot_id`, `policies` | `CandidateRef` |
+| `source_studio.candidate` | `actor`, `id`, `part` (`summary`, `records`, `issues`), `cursor`, `limit` | `{ status, value }` with `status` `ok`, `not_found`, `expired`, or `bad_cursor` |
+| `topology.web.mutate` | the current mutation arguments | the current receipt; `router.sources_set` and `wan.candidate_set` use it |
+
+Smoke test: `bash tools/integration/studio-service-smoke.sh` runs HTTP → broker → core service API → a fake RouterOS server in one temporary root. Its output is test evidence, not production acceptance. It uses the real broker, HTTP, `Runner`, and service API code in harness processes (`studio_gateway`, `studio_core`), because the installed broker needs root and the core reads root-owned secrets. It does not cover publication by the topology writer.
+
+The plan proposed `source_studio.config`. It does not exist: `GET /api/v1/routers/{id}/source-config` reads the service cache `source-studio.json`, so a GET never waits for the service.
 
 ## Browser fixture cases
 
@@ -394,4 +490,4 @@ Fixture rules in all cases:
 - A source job for a router other than `lq3-00000000000000a1` returns `409` with `router_disabled`.
 - The same key with the same payload returns the same operation. The same key with a changed payload returns `409` with `key_reused`.
 - The page cursor is a plain offset in the fixture only. The service binds the cursor to the actor, candidate, draft digest, and filter.
-- The source-job body limit is 32 KiB. The existing `POST /api/v1/topology/edits` keeps the 4 KiB limit until task B5.
+- The source-job body limit is 32 KiB. Since task B4, `POST /api/v1/topology/edits` also takes 32 KiB.

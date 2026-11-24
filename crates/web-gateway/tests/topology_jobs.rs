@@ -29,6 +29,8 @@ enum Mode {
     Drop,
     /// Answer with another request ID.
     WrongId,
+    /// Answer each mutation with a failed receipt, as the service does for a refused save.
+    Fail,
 }
 
 /// A fake service API socket. It counts `topology.web.mutate` calls. `topology.web.operation`
@@ -54,6 +56,11 @@ fn core(dir: &std::path::Path, mode: Mode) -> Arc<AtomicUsize> {
                         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
                         match mode {
                             Mode::Drop => return,
+                            Mode::Fail => {
+                                json!({"key": KEY, "state": "failed", "base_revision": "2",
+                                "revision": null, "subject_id": null,
+                                "error": "stale_config_digest: the loaded configuration changed"})
+                            }
                             _ => receipt("saved"),
                         }
                     }
@@ -515,5 +522,45 @@ async fn a_read_with_too_many_or_empty_router_ids_is_refused() {
             jobs.read("alice", request).await.unwrap_err(),
             Refused::Invalid
         );
+    }
+}
+
+fn sources_set() -> WebCommand {
+    serde_json::from_value(json!({"command": "edit", "expected_revision": 2, "edit": {
+        "kind": "router.sources_set", "router_id": "lq3-00000000000000a1",
+        "expected_config_digest": "d1", "policies": []}}))
+    .unwrap()
+}
+
+#[tokio::test]
+async fn lost_policy_reply_recovers_receipt() {
+    let dir = tempfile::tempdir().unwrap();
+    let calls = core(dir.path(), Mode::Drop);
+    let jobs = Jobs::new(dir.path().into());
+    jobs.submit("alice", KEY, sources_set()).await.unwrap();
+    // The reply is lost after the service saved: the receipt decides, with no second save.
+    let done = settle(&jobs, "alice").await;
+    assert_eq!(done.state, "saved");
+    assert_eq!(done.receipt.unwrap().revision.as_deref(), Some("3"));
+    jobs.submit("alice", KEY, sources_set()).await.unwrap();
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    // Another actor cannot read that receipt.
+    assert_eq!(jobs.status("bob", KEY).await.state, "not_found");
+}
+
+#[tokio::test]
+async fn apply_failure_never_reports_applied() {
+    let dir = tempfile::tempdir().unwrap();
+    core(dir.path(), Mode::Fail);
+    let jobs = Jobs::new(dir.path().into());
+    jobs.submit("alice", KEY, sources_set()).await.unwrap();
+    let done = settle(&jobs, "alice").await;
+    assert_eq!(done.state, "failed");
+    let receipt = done.receipt.unwrap();
+    assert_eq!((receipt.state.as_str(), receipt.revision), ("failed", None));
+    assert!(receipt.error.unwrap().starts_with("stale_config_digest"));
+    // An operation state is never "applied": only runtime evidence shows an applied output.
+    for state in [&done.state, &receipt.state] {
+        assert!(!["saved", "applied"].contains(&state.as_str()));
     }
 }

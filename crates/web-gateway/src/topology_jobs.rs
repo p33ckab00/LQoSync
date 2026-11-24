@@ -12,6 +12,9 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt};
 use tokio::sync::{Mutex, Semaphore};
+use web_contract::source_studio::{
+    StudioCapabilities, StudioJob, StudioJobRequest, StudioJobResult,
+};
 use web_contract::topology::{
     CapacityChange, DiscoveredRouter, Discovery, LayoutRequest, Moved, Node, NodeChange, Operation,
     ProposalRequest, RateChange, ReadJob, ReadRequest, Review, SourceCandidate, WanCandidate,
@@ -488,6 +491,151 @@ impl Jobs {
             this.set(&request.key, state).await;
         });
         Ok(op(&key, "queued", None))
+    }
+
+    /// The Studio features of the service. `None`: an older service without Studio operations.
+    pub async fn studio_capabilities(&self) -> Result<Option<StudioCapabilities>, Refused> {
+        match call(
+            &self.root,
+            "source_studio.capabilities",
+            serde_json::json!({}),
+            LOOKUP_LIMIT,
+        )
+        .await
+        {
+            Ok(v) => Ok(serde_json::from_value(v).ok()),
+            Err(CallError::Refused(_)) => Ok(None),
+            Err(_) => Err(Refused::Unavailable),
+        }
+    }
+
+    /// Start one Studio source job. The typed result arrives on `Operation.source_result`.
+    /// The job keeps a digest of the request only, never the draft secret.
+    pub async fn studio(
+        &self,
+        actor: &str,
+        request: StudioJobRequest,
+    ) -> Result<Operation, Refused> {
+        use sha2::{Digest, Sha256};
+        let (operation, args) = match &request.job {
+            StudioJob::DraftTest {
+                connection,
+                required_sources,
+            } => (
+                "source_studio.test",
+                serde_json::json!({"connection": connection, "required_sources": required_sources}),
+            ),
+            StudioJob::Collect {
+                router_id,
+                expected_config_digest,
+                sources,
+            } => {
+                if !(1..=64).contains(&router_id.len()) || expected_config_digest.len() > 128 {
+                    return Err(Refused::Invalid);
+                }
+                (
+                    "source_studio.collect",
+                    serde_json::json!({"router_id": router_id,
+                        "expected_config_digest": expected_config_digest, "sources": sources}),
+                )
+            }
+            StudioJob::Evaluate {
+                router_id,
+                expected_revision,
+                expected_config_digest,
+                snapshot_id,
+                policies,
+            } => {
+                let small = |v: &str| (1..=128).contains(&v.len());
+                if ![
+                    router_id,
+                    expected_revision,
+                    expected_config_digest,
+                    snapshot_id,
+                ]
+                .iter()
+                .all(|v| small(v))
+                {
+                    return Err(Refused::Invalid);
+                }
+                (
+                    "source_studio.evaluate",
+                    serde_json::json!({"actor": actor, "router_id": router_id,
+                        "expected_revision": expected_revision,
+                        "expected_config_digest": expected_config_digest,
+                        "snapshot_id": snapshot_id, "policies": policies}),
+                )
+            }
+        };
+        let key = request.key;
+        let bytes = serde_json::to_vec(&request.job).map_err(|_| Refused::Invalid)?;
+        drop(request.job);
+        // A random key of this process: the kept digest of a draft test cannot be checked
+        // against a guessed password.
+        static DIGEST_KEY: std::sync::OnceLock<[u8; 32]> = std::sync::OnceLock::new();
+        let digest: String = Sha256::new()
+            .chain_update(DIGEST_KEY.get_or_init(rand::random))
+            .chain_update(&bytes)
+            .finalize()
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect();
+        drop(bytes);
+        let payload = serde_json::json!({"studio": operation, "digest": digest});
+        if let Some(known) = self.admit(actor, &key, payload).await? {
+            return Ok(known);
+        }
+        let this = self.clone();
+        let queued = op(&key, "queued", None);
+        tokio::spawn(async move {
+            let _lane = this.lane.acquire().await;
+            this.set(&key, State::Running).await;
+            let failed = |error: Option<String>| Operation {
+                error,
+                ..op(&key, "failed", None)
+            };
+            let result = match call(&this.root, operation, args, MUTATE_LIMIT).await {
+                Ok(v) if operation == "source_studio.test" => serde_json::from_value(v)
+                    .map(StudioJobResult::DraftTest)
+                    .map_err(|_| Some("The service answer is not valid.".to_string())),
+                Ok(v) if operation == "source_studio.collect" => serde_json::from_value(v)
+                    .map(StudioJobResult::Snapshot)
+                    .map_err(|_| Some("The service answer is not valid.".to_string())),
+                Ok(v) => serde_json::from_value(v)
+                    .map(StudioJobResult::Candidate)
+                    .map_err(|_| Some("The service answer is not valid.".to_string())),
+                Err(CallError::Refused(error)) => Err(error),
+                Err(_) => Err(Some("The service did not answer the job.".to_string())),
+            };
+            let state = match result {
+                Ok(r) => Operation {
+                    source_result: Some(r),
+                    ..op(&key, "done", None)
+                },
+                Err(error) => failed(error),
+            };
+            this.set(&key, State::Done(Box::new(state))).await;
+        });
+        Ok(queued)
+    }
+
+    /// One part of a kept candidate of `actor`: the service answer with its `status`.
+    pub async fn studio_candidate(
+        &self,
+        actor: &str,
+        id: &str,
+        part: &str,
+        cursor: Option<&str>,
+        limit: u16,
+    ) -> Result<serde_json::Value, Refused> {
+        let args = serde_json::json!({"actor": actor, "id": id, "part": part,
+            "cursor": cursor, "limit": limit});
+        call(&self.root, "source_studio.candidate", args, LOOKUP_LIMIT)
+            .await
+            .map_err(|e| match e {
+                CallError::Refused(_) => Refused::Invalid,
+                _ => Refused::Unavailable,
+            })
     }
 
     /// Start one explicit router read. The answer arrives on the operation (`done`).

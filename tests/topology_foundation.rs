@@ -50,6 +50,7 @@ fn aggregate_stage_preserves_legacy_ppp_factors_backstop_and_explicit_floor() {
                     id: "Hub-1".into(),
                     name: "Hub-1".into(),
                     roles: vec![RouterRole::Ppp],
+                    ..Default::default()
                 }],
                 sources: vec![CatalogSource {
                     excluded: false,

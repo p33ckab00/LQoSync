@@ -401,10 +401,12 @@ mod studio {
             return next.run(request).await;
         }
         let case = s.scenario.case();
+        let legacy = case.capabilities.is_none() && !control;
         let Some(p) = principal(&s.inner, request.headers()).await else {
-            let legacy = case.capabilities.is_none() && !control;
-            return if operation.is_some() || legacy {
+            return if operation.is_some() {
                 next.run(request).await
+            } else if legacy {
+                StatusCode::NOT_FOUND.into_response()
             } else {
                 StatusCode::UNAUTHORIZED.into_response()
             };
@@ -422,9 +424,9 @@ mod studio {
                 None => next.run(request).await,
             };
         }
-        // An old backend: the production router answers `404`.
-        if case.capabilities.is_none() && !control {
-            return next.run(request).await;
+        // An old backend has no Studio route: `404`, as its production router answers.
+        if legacy {
+            return StatusCode::NOT_FOUND.into_response();
         }
         let post = request.method() == Method::POST;
         if post {
@@ -869,6 +871,24 @@ async fn main() -> anyhow::Result<()> {
             let nic_temporary = cache_dir.join("nic.next");
             if std::fs::write(&nic_temporary, serde_json::to_vec(&nic).unwrap()).is_ok() {
                 let _ = std::fs::rename(nic_temporary, cache_dir.join("nic-telemetry.json"));
+            }
+            // Synthetic dataplane host rates for the fixture subscribers (live throughput view).
+            let wave = |phase: f64| 40.0 + (now as f64 / 5.0 + phase).sin() * 15.0;
+            let telemetry = serde_json::json!({"version": 1, "updated": now, "stale": false, "reason": null, "hosts": {
+                "account-02": {"192.0.2.12": {"down_mbps": wave(0.0), "up_mbps": wave(0.0) / 8.0, "rtt_ms": 6.5}},
+                "account-03": {"192.0.2.13": {"down_mbps": wave(1.0), "up_mbps": wave(1.0) / 8.0, "rtt_ms": 9.0}},
+                "client-06": {"192.0.2.16": {"down_mbps": wave(2.0) / 2.0, "up_mbps": 3.0, "rtt_ms": 12.0}}}});
+            let telemetry_temporary = cache_dir.join("telemetry.next");
+            if std::fs::write(
+                &telemetry_temporary,
+                serde_json::to_vec(&telemetry).unwrap(),
+            )
+            .is_ok()
+            {
+                let _ = std::fs::rename(
+                    telemetry_temporary,
+                    cache_dir.join("subscriber-telemetry.json"),
+                );
             }
             let temporary = cache_dir.join("workers.next");
             if std::fs::write(&temporary, serde_json::to_vec(&workers).unwrap()).is_ok() {

@@ -506,6 +506,452 @@ mod operations {
     }
 
     #[tokio::test]
+    async fn source_studio_ops_report_capabilities_and_never_echo_a_draft() {
+        let e = env();
+        let mut r = runner(&e, setup(&e, None));
+        r.lock().unwrap();
+        let caps = call(&mut r, "source_studio.capabilities", json!({})).await;
+        assert_eq!(caps["result"]["version"], json!(1), "{caps}");
+        assert_eq!(
+            caps["result"]["features"],
+            json!([
+                "draft_test",
+                "access_profiles",
+                "source_collect",
+                "wan_evidence",
+                "policy_preview",
+                "policy_save"
+            ])
+        );
+        let secret = "s3cret-in-args";
+        let connection = |address: Value| {
+            json!({"address": address, "port": 8729, "tls": true, "tls_verify": true,
+                   "username": "studio", "password": secret, "ca_pem": null})
+        };
+        let bad = call(
+            &mut r,
+            "source_studio.test",
+            json!({"connection": connection(json!(5)), "required_sources": []}),
+        )
+        .await;
+        assert_eq!(bad["error"]["code"], json!("bad_request"), "{bad}");
+        let invalid = call(
+            &mut r,
+            "source_studio.test",
+            json!({"connection": connection(json!("bad address")), "required_sources": []}),
+        )
+        .await;
+        assert_eq!(invalid["error"]["code"], json!("invalid"), "{invalid}");
+        let ok = call(
+            &mut r,
+            "source_studio.test",
+            json!({"connection": connection(json!("198.51.100.7")), "required_sources": ["ppp"]}),
+        )
+        .await;
+        assert_eq!(
+            ok["result"]["checks"].as_array().map(Vec::len),
+            Some(5),
+            "{ok}"
+        );
+        for v in [bad, invalid, ok] {
+            assert!(!v.to_string().contains(secret), "{v}");
+        }
+    }
+
+    #[tokio::test]
+    async fn source_collection_answers_a_snapshot_and_writes_the_studio_cache() {
+        let e = env();
+        let mut r = runner(&e, setup(&e, None));
+        r.lock().unwrap();
+        let id = crate::topology_manager::policy_draft::router_id(&r.cfg.routers[0].name);
+        let digest = r.config_digest.clone();
+        let stale = call(
+            &mut r,
+            "source_studio.collect",
+            json!({"router_id": id, "expected_config_digest": "old", "sources": ["ppp"]}),
+        )
+        .await;
+        assert_eq!(stale["error"]["code"], json!("invalid"), "{stale}");
+        let ok = call(
+            &mut r,
+            "source_studio.collect",
+            json!({"router_id": id, "expected_config_digest": digest, "sources": ["ppp"]}),
+        )
+        .await;
+        let snapshot = &ok["result"];
+        assert_eq!(snapshot["router_id"], json!(id), "{ok}");
+        assert_eq!(snapshot["tables"].as_array().map(Vec::len), Some(11));
+        let cache: web_contract::source_studio::StudioCache = serde_json::from_slice(
+            &std::fs::read(e.state.join(web_contract::source_studio::CACHE)).unwrap(),
+        )
+        .unwrap();
+        let view = cache.routers.iter().find(|v| v.router_id == id).unwrap();
+        assert_eq!(view.snapshots.len(), 1);
+        assert_eq!(view.snapshots[0].id, snapshot["id"].as_str().unwrap());
+    }
+
+    /// A PPP policy in the configured PPP rate order, grouped by profile.
+    fn ppp_policy() -> serde_json::Value {
+        let legacy = json!({"format": "legacy_configured"});
+        let mut rates = vec![json!({"kind": "subscriber_override"})];
+        for kind in ["account_comment", "active_comment", "profile_comment"] {
+            let mut r = legacy.clone();
+            r["kind"] = json!(kind);
+            rates.push(r);
+        }
+        rates.extend([
+            json!({"kind": "profile_rate_limit"}),
+            json!({"kind": "profile_name"}),
+            json!({"kind": "settings"}),
+        ]);
+        json!({"id": null, "name": "PPPoE", "enabled": true, "priority": 10, "source": "ppp",
+               "read_access_ref": "default", "members": "joined",
+               "filter": {"kind": "all", "rules": []},
+               "group": {"kind": "by_field", "field": "account.profile"},
+               "identity": "registry", "rates": rates, "parent": {"kind": "router"},
+               "capacity": {"kind": "from_plans", "down_factor": "1", "up_factor": "1",
+                            "minimum_down_bps": "0", "minimum_up_bps": "0"},
+               "writes": []})
+    }
+
+    fn sources_set(
+        rev: u64,
+        id: &str,
+        digest: &str,
+        policies: serde_json::Value,
+    ) -> web_contract::topology::WebCommand {
+        serde_json::from_value(
+            json!({"command": "edit", "expected_revision": rev, "edit": {
+            "kind": "router.sources_set", "router_id": id, "expected_config_digest": digest,
+            "policies": policies}}),
+        )
+        .unwrap()
+    }
+
+    fn revision(r: &Runner<FakeConnector>) -> u64 {
+        r.topology_store
+            .as_ref()
+            .unwrap()
+            .document()
+            .unwrap()
+            .revision
+    }
+
+    fn router_entry(
+        r: &Runner<FakeConnector>,
+        id: &str,
+    ) -> crate::topology_manager::catalog::CatalogRouter {
+        r.topology_store
+            .as_ref()
+            .unwrap()
+            .document()
+            .unwrap()
+            .clone()
+            .catalog
+            .unwrap()
+            .routers
+            .into_iter()
+            .find(|x| x.id == id)
+            .unwrap()
+    }
+
+    fn router_sources(r: &Runner<FakeConnector>, id: &str) -> usize {
+        use crate::topology_manager::catalog::SourceOrigin;
+        let doc = r
+            .topology_store
+            .as_ref()
+            .unwrap()
+            .document()
+            .unwrap()
+            .clone();
+        doc.catalog.unwrap().sources.iter()
+            .filter(|s| matches!(&s.origin, SourceOrigin::Subscribers { scope, .. } if scope.router_id == id))
+            .count()
+    }
+
+    #[tokio::test]
+    async fn uninitialized_registry_refuses_policy_without_side_effects() {
+        let e = env();
+        let mut r = runner(&e, setup(&e, None));
+        r.lock().unwrap();
+        let id = crate::topology_manager::policy_draft::router_id(&r.cfg.routers[0].name);
+        let digest = r.config_digest.clone();
+        let out = r
+            .api_web_mutate(
+                "studio-save-0000000001",
+                "alice",
+                sources_set(0, &id, &digest, json!([ppp_policy()])),
+            )
+            .await
+            .unwrap();
+        assert_eq!(out["state"], json!("failed"), "{out}");
+        assert!(
+            out["error"]
+                .as_str()
+                .unwrap_or_default()
+                .contains("not_initialized"),
+            "{out}"
+        );
+        let doc = r.topology_store.as_ref().unwrap().document().unwrap();
+        assert!(doc.catalog.is_none() && doc.revision == 0);
+    }
+
+    #[tokio::test]
+    async fn policy_save_goes_through_receipts_revisions_and_digests() {
+        let e = env();
+        let mut r = runner(&e, setup(&e, None));
+        r.lock().unwrap();
+        let d = draft(&mut r).await;
+        let v = call(&mut r, "policy.commit",
+            json!({"expected_revision": 0, "catalog": d["catalog"], "source_settings": d["source_settings"]})).await;
+        assert_eq!(v["result"]["revision"], json!(1), "{v}");
+        let id = crate::topology_manager::policy_draft::router_id(&r.cfg.routers[0].name);
+        let digest = r.config_digest.clone();
+        // none_keeps_current_sources: before a save the router has its legacy sources.
+        assert!(router_entry(&r, &id).source_policies.is_none());
+        let legacy_sources = router_sources(&r, &id);
+        assert!(legacy_sources > 0);
+        // A save needs the newest complete snapshot of the router.
+        let out = r
+            .api_web_mutate(
+                "studio-save-0000000001",
+                "alice",
+                sources_set(1, &id, &digest, json!([ppp_policy()])),
+            )
+            .await
+            .unwrap();
+        assert_eq!(out["state"], json!("failed"), "{out}");
+        assert!(
+            out["error"]
+                .as_str()
+                .unwrap()
+                .contains("collect_router_first"),
+            "{out}"
+        );
+        // partial_read_never_removes_circuits: a failed read cannot save or remove anything.
+        e.fake
+            .failing
+            .lock()
+            .unwrap()
+            .insert(r.cfg.routers[0].name.clone());
+        let v = call(
+            &mut r,
+            "source_studio.collect",
+            json!({"router_id": id, "expected_config_digest": digest, "sources": ["ppp"]}),
+        )
+        .await;
+        assert_eq!(v["result"]["tables"][2]["state"], json!("failed"), "{v}");
+        let out = r
+            .api_web_mutate(
+                "studio-save-0000000002",
+                "alice",
+                sources_set(1, &id, &digest, json!([ppp_policy()])),
+            )
+            .await
+            .unwrap();
+        assert_eq!(out["state"], json!("failed"), "{out}");
+        assert_eq!((revision(&r), router_sources(&r, &id)), (1, legacy_sources));
+        e.fake.failing.lock().unwrap().clear();
+        let v = call(
+            &mut r,
+            "source_studio.collect",
+            json!({"router_id": id, "expected_config_digest": digest, "sources": ["ppp"]}),
+        )
+        .await;
+        assert!(v["result"]["id"].is_string(), "{v}");
+        // stale_config_digest_refuses_policy, and config_save_is_separate_from_policy_save: a saved
+        // router edit that the service has not loaded yet gives another digest. The policy waits.
+        let out = r
+            .api_web_mutate(
+                "studio-save-0000000003",
+                "alice",
+                sources_set(1, &id, "saved-not-loaded", json!([ppp_policy()])),
+            )
+            .await
+            .unwrap();
+        assert!(
+            out["error"]
+                .as_str()
+                .unwrap()
+                .contains("stale_config_digest"),
+            "{out}"
+        );
+        assert_eq!(revision(&r), 1);
+        // A stale registry revision is refused before commit.
+        let out = r
+            .api_web_mutate(
+                "studio-save-0000000004",
+                "alice",
+                sources_set(0, &id, &digest, json!([ppp_policy()])),
+            )
+            .await
+            .unwrap();
+        assert_ne!(out["state"], json!("saved"), "{out}");
+        assert_eq!(revision(&r), 1);
+        // same_key_same_payload_saves_once.
+        let save = sources_set(1, &id, &digest, json!([ppp_policy()]));
+        let out = r
+            .api_web_mutate("studio-save-0000000005", "alice", save.clone())
+            .await
+            .unwrap();
+        assert_eq!(out["state"], json!("saved"), "{out}");
+        assert_eq!(revision(&r), 2);
+        let again = r
+            .api_web_mutate("studio-save-0000000005", "alice", save)
+            .await
+            .unwrap();
+        assert_eq!(again, out);
+        assert_eq!(revision(&r), 2, "a retry commits nothing");
+        let saved = router_entry(&r, &id).source_policies.unwrap();
+        assert_eq!(saved.len(), 1);
+        // The current engine prepares the saved policy, as the next cycle does.
+        let preview = call(&mut r, "topology.preview.refresh", json!({})).await;
+        assert_eq!(preview["result"]["state"], json!("ok"), "{preview}");
+        assert_eq!(preview["result"]["registry_revision"], json!(2));
+        assert!(
+            saved[0]
+                .id
+                .as_deref()
+                .is_some_and(|x| x.starts_with("policy-"))
+        );
+        // changed_payload_same_key_is_refused.
+        let changed = sources_set(1, &id, &digest, json!([]));
+        assert!(
+            r.api_web_mutate("studio-save-0000000005", "alice", changed)
+                .await
+                .is_err()
+        );
+        assert_eq!(revision(&r), 2);
+        // some_empty_policies_disables_sources: an explicit empty set removes the policy sources.
+        let out = r
+            .api_web_mutate(
+                "studio-save-0000000006",
+                "alice",
+                sources_set(2, &id, &digest, json!([])),
+            )
+            .await
+            .unwrap();
+        assert_eq!(out["state"], json!("saved"), "{out}");
+        assert_eq!(router_entry(&r, &id).source_policies, Some(vec![]));
+        assert_eq!(router_sources(&r, &id), 0);
+        let doc = r
+            .topology_store
+            .as_ref()
+            .unwrap()
+            .document()
+            .unwrap()
+            .clone();
+        assert!(
+            doc.source_settings
+                .unwrap()
+                .selections
+                .iter()
+                .all(|s| s.scope.router_id != id)
+        );
+    }
+
+    #[tokio::test]
+    async fn wan_decision_survives_read_failure() {
+        let e = env();
+        let mut r = runner(&e, setup(&e, None));
+        r.lock().unwrap();
+        let d = draft(&mut r).await;
+        call(&mut r, "policy.commit",
+            json!({"expected_revision": 0, "catalog": d["catalog"], "source_settings": d["source_settings"]})).await;
+        let id = crate::topology_manager::policy_draft::router_id(&r.cfg.routers[0].name);
+        let digest = r.config_digest.clone();
+        let decide = |rev: u64, decision: &str| -> web_contract::topology::WebCommand {
+            serde_json::from_value(
+                json!({"command": "edit", "expected_revision": rev, "edit": {
+                "kind": "wan.candidate_set", "router_id": id, "expected_config_digest": digest,
+                "interface": "pppoe-out1", "decision": decision}}),
+            )
+            .unwrap()
+        };
+        let reads = e.fake.reads.load(std::sync::atomic::Ordering::SeqCst);
+        let out = r
+            .api_web_mutate("studio-wan-000000000001", "alice", decide(1, "pin"))
+            .await
+            .unwrap();
+        assert_eq!(out["state"], json!("saved"), "{out}");
+        assert_eq!(
+            reads,
+            e.fake.reads.load(std::sync::atomic::Ordering::SeqCst),
+            "a decision reads no router"
+        );
+        e.fake
+            .failing
+            .lock()
+            .unwrap()
+            .insert(r.cfg.routers[0].name.clone());
+        let v = call(
+            &mut r,
+            "source_studio.collect",
+            json!({"router_id": id, "expected_config_digest": digest, "sources": ["wan"]}),
+        )
+        .await;
+        assert_eq!(v["result"]["tables"][1]["state"], json!("failed"), "{v}");
+        let kept = router_entry(&r, &id).wan_decisions;
+        assert_eq!(kept.len(), 1);
+        assert_eq!(
+            kept[0].decision,
+            web_contract::source_studio::WanCandidateDecision::Pin
+        );
+        let out = r
+            .api_web_mutate("studio-wan-000000000002", "alice", decide(2, "clear"))
+            .await
+            .unwrap();
+        assert_eq!(out["state"], json!("saved"), "{out}");
+        assert!(router_entry(&r, &id).wan_decisions.is_empty());
+    }
+
+    /// Every file under the state directory, with its bytes.
+    fn files(dir: &std::path::Path) -> std::collections::BTreeMap<std::path::PathBuf, Vec<u8>> {
+        let mut out = std::collections::BTreeMap::new();
+        let mut stack = vec![dir.to_path_buf()];
+        while let Some(d) = stack.pop() {
+            for entry in std::fs::read_dir(&d).into_iter().flatten().flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    stack.push(path);
+                } else if let Ok(bytes) = std::fs::read(&path) {
+                    out.insert(path, bytes);
+                }
+            }
+        }
+        out
+    }
+
+    #[tokio::test]
+    async fn source_evaluation_refuses_stale_input_and_changes_no_state_file() {
+        let e = env();
+        let mut r = runner(&e, setup(&e, None));
+        r.lock().unwrap();
+        let id = crate::topology_manager::policy_draft::router_id(&r.cfg.routers[0].name);
+        let digest = r.config_digest.clone();
+        let before = files(&e.state);
+        let args = |revision: &str| {
+            json!({"actor": "alice", "router_id": id, "expected_revision": revision,
+                   "expected_config_digest": digest, "snapshot_id": "snap-x", "policies": []})
+        };
+        let v = call(&mut r, "source_studio.evaluate", args("0")).await;
+        let code = v["error"]["code"].as_str().unwrap_or_default().to_owned();
+        assert!(code == "invalid" || code == "conflict", "{v}");
+        let v = call(&mut r, "source_studio.evaluate", args("x")).await;
+        assert!(v["error"]["code"].is_string(), "{v}");
+        for part in ["summary", "records", "issues"] {
+            let v = call(
+                &mut r,
+                "source_studio.candidate",
+                json!({"actor": "alice", "id": "cand-old-1", "part": part}),
+            )
+            .await;
+            assert_eq!(v["result"]["status"], json!("expired"), "{v}");
+        }
+        assert_eq!(files(&e.state), before, "no state file changed");
+    }
+
+    #[tokio::test]
     async fn a_lost_lock_answers_internal_and_returns_lost_lock() {
         let e = env();
         let mut r = runner(&e, setup(&e, None));

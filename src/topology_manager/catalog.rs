@@ -18,12 +18,30 @@ pub enum RouterRole {
     Hotspot,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CatalogRouter {
     pub id: String,
     pub name: String,
     pub roles: Vec<RouterRole>,
+    /// Topology Studio source policies (schema 10). `None` keeps the legacy source behavior;
+    /// `Some([])` selects no policy source. The router `enabled` flag stays the connection gate.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_policies: Option<Vec<StoredSourcePolicy>>,
+    /// Saved WAN candidate decisions (schema 10). A decision writes nothing to the router.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub wan_decisions: Vec<StoredWanDecision>,
+}
+
+/// A saved policy is the contract draft with its backend-assigned ID.
+pub type StoredSourcePolicy = web_contract::source_studio::SourcePolicyDraft;
+
+/// `pin` or `ignore` for one interface. `clear` removes the entry.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct StoredWanDecision {
+    pub interface: String,
+    pub decision: web_contract::source_studio::WanCandidateDecision,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

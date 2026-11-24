@@ -118,6 +118,27 @@ pub enum Request {
     TopologyLayout {
         request: web_contract::topology::LayoutRequest,
     },
+    /// Live throughput by placement, from two service caches. No router I/O.
+    TopologyThroughput,
+    /// The Studio features of the service. No router I/O.
+    StudioCapabilities,
+    /// The cached Studio view of one router. No router I/O.
+    StudioConfig {
+        router_id: String,
+    },
+    /// One part of a kept candidate (`summary`, `records`, or `issues`). No router I/O.
+    StudioCandidate {
+        actor: String,
+        id: String,
+        part: String,
+        cursor: Option<String>,
+        limit: u16,
+    },
+    /// One Studio source job. A draft test carries its secret in this request only.
+    StudioJob {
+        actor: String,
+        request: web_contract::source_studio::StudioJobRequest,
+    },
 }
 #[derive(Default, Serialize, Deserialize)]
 pub struct Reply {
@@ -147,6 +168,16 @@ pub struct Reply {
     /// Why a mutation was not queued: `invalid`, `key_reused`, or `busy`.
     #[serde(default)]
     pub refused: Option<String>,
+    /// `None` with `ok`: the service has no Studio operations.
+    #[serde(default)]
+    pub capabilities: Option<web_contract::source_studio::StudioCapabilities>,
+    #[serde(default)]
+    pub source_config: Option<web_contract::source_studio::RouterSourceConfig>,
+    /// The service answer to a candidate read, with its `status`.
+    #[serde(default)]
+    pub candidate: Option<serde_json::Value>,
+    #[serde(default)]
+    pub throughput: Option<web_contract::topology::TopologyThroughput>,
 }
 impl Reply {
     fn no() -> Self {
@@ -165,6 +196,10 @@ impl Reply {
             layout: None,
             operation: None,
             refused: None,
+            capabilities: None,
+            source_config: None,
+            candidate: None,
+            throughput: None,
         }
     }
 }
@@ -365,6 +400,58 @@ pub async fn serve(
                         }
                         Err(refused) => crate::topology_jobs::answer(&mut reply, Err(refused)),
                     },
+                    Request::TopologyThroughput => {
+                        reply.throughput = tokio::task::spawn_blocking(move || {
+                            crate::throughput::load(&root, now())
+                        })
+                        .await?;
+                        reply.ok = reply.throughput.is_some();
+                    }
+                    Request::StudioCapabilities => match jobs.studio_capabilities().await {
+                        Ok(caps) => {
+                            reply.capabilities = caps;
+                            reply.ok = true;
+                        }
+                        Err(refused) => crate::topology_jobs::answer(&mut reply, Err(refused)),
+                    },
+                    Request::StudioConfig { router_id } => {
+                        ensure!(router_id.len() <= 64, "invalid input");
+                        reply.source_config = tokio::task::spawn_blocking(move || {
+                            crate::source_studio::load_config(&root, &router_id)
+                        })
+                        .await?;
+                        reply.ok = reply.source_config.is_some();
+                    }
+                    Request::StudioCandidate {
+                        actor,
+                        id,
+                        part,
+                        cursor,
+                        limit,
+                    } => {
+                        ensure!(
+                            actor.len() <= 64
+                                && id.len() <= 64
+                                && cursor.as_ref().is_none_or(|c| c.len() <= 128),
+                            "invalid input"
+                        );
+                        match jobs
+                            .studio_candidate(&actor, &id, &part, cursor.as_deref(), limit)
+                            .await
+                        {
+                            Ok(v) => {
+                                reply.candidate = Some(v);
+                                reply.ok = true;
+                            }
+                            Err(refused) => crate::topology_jobs::answer(&mut reply, Err(refused)),
+                        }
+                    }
+                    Request::StudioJob { actor, request } => {
+                        crate::topology_jobs::answer(
+                            &mut reply,
+                            jobs.studio(&actor, request).await,
+                        );
+                    }
                     Request::TopologyCancel { actor, proposal } => {
                         reply.ok = jobs.cancel(&actor, &proposal).await;
                     }
@@ -441,8 +528,15 @@ pub async fn serve(
                             anyhow::bail!("no router editor");
                         };
                         // A credential replacement or a disable needs the operator password again (owner decision D2).
+                        let profile_secret = form
+                            .edit
+                            .access_profiles
+                            .as_ref()
+                            .is_some_and(|list| list.iter().any(|p| p.password.is_some()));
                         let replaces = router_id.is_some()
-                            && (form.edit.password.is_some() || form.edit.enabled == Some(false));
+                            && (form.edit.password.is_some()
+                                || profile_secret
+                                || form.edit.enabled == Some(false));
                         let confirmed = match (replaces, form.current_password.clone()) {
                             (false, _) => true,
                             // Only a real password try counts against the login rate limit.

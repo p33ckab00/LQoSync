@@ -68,11 +68,15 @@ impl rustls::client::danger::ServerCertVerifier for AnyCertificate {
 /// The rustls client config for a router: its CA file, or the public CAs.
 pub fn tls_client_config(router: &RouterCfg) -> Result<Arc<rustls::ClientConfig>, ReadError> {
     let mut roots = rustls::RootCertStore::empty();
-    if router.tls_ca_file.is_empty() {
+    let draft_ca = router.draft.as_ref().and_then(|d| d.ca_pem.as_deref());
+    if draft_ca.is_none() && router.tls_ca_file.is_empty() {
         roots.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
     } else {
-        let pem = std::fs::read(&router.tls_ca_file)
-            .map_err(|e| ReadError::Tls(format!("tls_ca_file {}: {e}", router.tls_ca_file)))?;
+        let pem = match draft_ca {
+            Some(pem) => pem.as_bytes().to_vec(),
+            None => std::fs::read(&router.tls_ca_file)
+                .map_err(|e| ReadError::Tls(format!("tls_ca_file {}: {e}", router.tls_ca_file)))?,
+        };
         for cert in rustls_pemfile::certs(&mut pem.as_slice()) {
             let cert = cert
                 .map_err(|e| ReadError::Tls(format!("tls_ca_file {}: {e}", router.tls_ca_file)))?;
@@ -144,8 +148,12 @@ impl Connector for MikrotikConnector {
                     router.name
                 )));
             }
-            let password = read_secret(Path::new(&router.password_file), owner_uid)
-                .map_err(|e| ReadError::Login(format!("{e:#}")))?;
+            // A draft test carries its password in memory; a registered router reads its file.
+            let password = match &router.draft {
+                Some(d) => d.password.0.clone(),
+                None => read_secret(Path::new(&router.password_file), owner_uid)
+                    .map_err(|e| ReadError::Login(format!("{e:#}")))?,
+            };
             let addr = (router.address.clone(), router.port);
             // Only a failed TCP connect means "unreachable". A hung login or TLS handshake later is a failure.
             match tokio::time::timeout(
