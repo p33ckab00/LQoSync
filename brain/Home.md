@@ -11,6 +11,8 @@ Read [[HANDOFF]] first for the current state.
 
 ## Sessions
 
+- [[2026-11-24-topology-studio-f3]] — Separate access/policy saves, conflict merge, receipt recovery, and runtime evidence
+
 - [[2026-11-24-topology-studio-f2]] — Read-only discovery, candidate canvas, validation evidence, and actor-bound draft recovery
 
 - [[2026-11-23-topology-studio-f1]] — Typed router/source drafts, shared connection forms, and explicit draft test
@@ -204,6 +206,8 @@ Read [[HANDOFF]] first for the current state.
 - [[ADR-0010-first-full-libreqos-run]] — accepted
 
 ## Knowledge
+
+- [[topology-studio-save-recovery]] — Save ordering, unknown outcomes, assigned IDs, and merge invariants
 
 - [[topology-manager-status]] — backend, Runner APIs, TUI, scheduler, and activation status
 - [[libreqos-v3-ingress-facts]]

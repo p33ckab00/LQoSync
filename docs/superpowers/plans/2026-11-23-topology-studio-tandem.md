@@ -328,15 +328,15 @@ Create `tools/frontend/studio-apply-check.cjs`.
 Use `EditRequest` with `router.sources_set` and the exact expected registry revision.
 Reuse current operation status and publication evidence.
 
-- [ ] Add `config_save_is_separate_from_policy_save`, `saved_is_not_applied`, and `retry_uses_the_same_key` browser scenarios.
+- [x] Add `config_save_is_separate_from_policy_save`, `saved_is_not_applied`, and `retry_uses_the_same_key` browser scenarios.
 
-- [ ] Add a policy save path that works without a prior preview. Keep draft values after any refusal.
+- [x] Add a policy save path that works without a prior preview. Keep draft values after any refusal.
 
-- [ ] Make Load saved topology read cached saved state without policy, layout, router, or output mutation.
+- [x] Make Load saved topology read cached saved state without policy, layout, router, or output mutation.
 
-- [ ] Remove fixture-only assumptions. Keep unsupported capabilities unavailable on old services.
+- [x] Remove fixture-only assumptions. Keep unsupported capabilities unavailable on old services.
 
-- [ ] Run `CHECKS=studio-router-check\ studio-preview-check\ studio-apply-check STAGES=browser bash tools/frontend/check-all.sh`.
+- [x] Run `CHECKS=studio-router-check\ studio-preview-check\ studio-apply-check STAGES=browser bash tools/frontend/check-all.sh`.
 
 ## I0 — Integrate both lanes and prove the result
 

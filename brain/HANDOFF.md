@@ -8,6 +8,25 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-24T12:19:57+08:00 (Asia/Manila) — Topology Studio F3 complete
+
+- Last agent: Codex. Goal: separate access/policy saves, conflict recovery, and runtime evidence.
+- Branch: `codex/topology-studio-ui`. Worktree: `/home/pi/LQoSync3.0-worktrees/codex-topology-studio-ui`.
+- Base: `3ee06d0`. Contract adoption: `3f86730` from backend `4ec8a0a`.
+- Code commits: `5812e74`, `5de4afa`, `41ffe5a`.
+- Changed: Studio API/model/save/editor, router forms, canvas integration, module registration, and three browser checks.
+- Workspace after the main corrections: 2047 passed, 0 failed, 13 ignored. Native/Wasm Clippy passed.
+- Final ID/reload changes: all 96 web-ui tests and native/Wasm Clippy passed. Format and whitespace passed.
+- On `41ffe5a`, all 27 browser checks and both builds passed. The established `pulse-check` exclusion remains.
+- Logs: `/tmp/lqosync-checks.yKJtHH/`. Final web-ui tests: `/tmp/lqosync-f3-final-ui-tests.log`.
+- Independent review found two Critical and six Important defects. One correction pass supplied regression proof. No second review ran.
+- Minor deferred: username whitespace and byte-count validation can differ from the backend. The backend refuses invalid values.
+- Return packet: `docs/handoffs/2026-11-23-codex-topology-frontend.md`. Evidence: `docs/frontend/evidence/topology-studio-f3/`.
+- Unfinished: I0 real service integration and runtime publication proof. These frontend checks use B0 fixtures and browser overrides.
+- Next: I0 with backend packet `86b9aa4`. B5 is complete in that worktree. Align its default-only read profile constraint.
+- Throughput and the owner Sankey reference remain follow-up work after integration.
+- No merge, push, deploy, production service change, or live router I/O occurred. Keep the branch and worktree.
+
 ## 2026-11-24T06:51:39+08:00 (Asia/Manila) — Topology Studio F2 complete
 
 - Last agent: Codex. Goal: explicit read-only discovery and candidate preview from the shared plan.

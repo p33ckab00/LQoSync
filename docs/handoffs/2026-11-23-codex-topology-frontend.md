@@ -227,3 +227,71 @@ Next action: F3 profile/policy persistence and save recovery, after review of th
 Check explicit-profile username/update semantics and the combined advertised limit for `PlanBinding` before save.
 B3/G3 integration and I0 remain separate tasks. This packet claims B0 fixture behavior only.
 Keep the branch and worktree.
+
+## F3 return packet — 2026-11-24
+
+Timestamp: 2026-11-24T12:19:57+08:00 (Asia/Manila).
+
+Owner: Codex. Branch: `codex/topology-studio-ui`.
+Worktree: `/home/pi/LQoSync3.0-worktrees/codex-topology-studio-ui`.
+
+Base: `3ee06d0`. Contract adoption: `3f86730` from backend `4ec8a0a`.
+Implementation: `5812e74`. Review corrections: `5de4afa`. Final stabilization: `41ffe5a`.
+
+Access configuration saves separately. The UI waits for the loaded digest before policy save.
+Unknown credential outcomes block further writes until explicit recovery.
+Secrets remain outside retained drafts. Cancel and Escape clear replacement secrets.
+The unchanged digest of a secret-only save cannot prove credential pickup after a failed reload signal.
+
+Policy save works without preview and uses the exact expected registry revision.
+Refusals preserve draft text. Recovery reads the original operation before a retry with the same key and payload.
+A check after that read prevents resubmission after a router switch or draft change.
+Saved-ID recovery preserves later local edits and never repeats a known saved write.
+
+Rebase uses three versions: saved baseline, local draft, and current cached state.
+It preserves remote additions and requires explicit choices for edits to the same entries.
+Different cached revisions cannot authorize save.
+The API omits explicit-profile usernames. The form requires confirmation after a configuration change.
+Remove source policy changes only the draft until Save.
+
+Saved receipts remain separate from fresh runtime acceptance for the same revision.
+Load saved topology uses cached reads without a policy, layout, router, or output write.
+Router-specific acknowledgments remain attached to the router that received the save during navigation.
+Controls remain inside the canvas and its bounded dialogs. The current themes remain available.
+
+Owned files: Studio API/model/save/editor, router forms, canvas integration, and module registration.
+Browser checks: `studio-apply-check.cjs`, `studio-apply-edge-check.cjs`, and `studio-apply-review-check.cjs`.
+
+Checks:
+
+- Workspace after the main corrections: 2047 passed, 0 failed, 13 ignored.
+- Workspace native Clippy and Wasm Clippy passed.
+- Final ID/reload changes: all 96 web-ui tests and native/Wasm Clippy passed.
+- Those tests include all 24 Studio model cases.
+- On `41ffe5a`, all 27 browser checks and both builds passed.
+- The established `pulse-check` exclusion remains. Format and whitespace checks passed.
+
+- Logs: `/tmp/lqosync-checks.yKJtHH/`. Final web-ui tests: `/tmp/lqosync-f3-final-ui-tests.log`.
+
+An independent review found two Critical and six Important defects in `5812e74`.
+One correction pass supplied native and browser RED/GREEN proof.
+The corrected code did not receive a second independent review.
+The incorrect new-profile help also received a correction.
+
+Minor deferred issue: username whitespace and byte-count validation can differ from backend validation.
+The backend refuses invalid values. Earlier F0/F2 minor items remain in their packets.
+Evidence: [F3 screenshots and checksums](../frontend/evidence/topology-studio-f3/README.md).
+Playwright supplied rendered checks. The optional design inspector is unavailable.
+
+These checks use B0 fixtures plus the accepted rate amendment.
+Browser routes supply metadata, revision, access-reply, and runtime-evidence transitions.
+They do not prove real service integration or output publication.
+No backend implementation or shared fixture change belongs to this frontend slice.
+
+Next: I0 with backend packet `86b9aa4`, after F3 capture.
+B5 is complete in the backend worktree. Its owner reports smoke 19/19 and 2084 workspace tests passed.
+The newest backend refuses non-default `read_access_ref` with `unsupported_in_v1`.
+Align that restriction during I0. Consume the additive throughput endpoint and owner Sankey reference after integration.
+
+No merge, push, deploy, production service change, or live router I/O occurred.
+Keep the branch and worktree.
