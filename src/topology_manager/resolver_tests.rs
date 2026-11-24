@@ -1224,6 +1224,20 @@ fn placement_never_targets_a_tree_excluded_router_node() {
 }
 
 #[test]
+fn placement_never_targets_a_tree_excluded_display_node() {
+    let mut r = registry();
+    add(&mut r, "lqos", Some("wan1"), NodeKind::Intermediate, None);
+    r.catalog
+        .as_mut()
+        .unwrap()
+        .nodes
+        .last_mut()
+        .unwrap()
+        .tree_excluded = true;
+    assert_eq!(targets(&auto_run(&r, 6)), set(&["wan1", "wan2"]));
+}
+
+#[test]
 fn an_excluded_source_leaves_the_pair() {
     let mut r = registry();
     for s in &mut r.catalog.as_mut().unwrap().sources {

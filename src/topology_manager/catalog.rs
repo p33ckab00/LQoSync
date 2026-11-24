@@ -204,7 +204,8 @@ pub struct CatalogNode {
     /// The `via-` address-list of a WAN node. `None` uses `via-<name>`. Added in schema 8.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub address_list: Option<String>,
-    /// A router node that `network.json` does not contain. Its children take its parent. Schema 9.
+    /// An intermediate node that `network.json` does not contain. Its children take its parent.
+    /// Schema 9.
     #[serde(default, skip_serializing_if = "is_false")]
     pub tree_excluded: bool,
 }
@@ -482,8 +483,8 @@ impl TopologyCatalog {
         let mut router_nodes = HashSet::new();
         for node in &self.nodes {
             ensure!(
-                !node.tree_excluded || node.router_id.is_some(),
-                "only a router node can be excluded from the network tree"
+                !node.tree_excluded || node.kind == NodeKind::Intermediate,
+                "only an intermediate node can be excluded from the network tree"
             );
             if let Some(router) = &node.router_id {
                 ensure!(

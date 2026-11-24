@@ -1915,14 +1915,35 @@ fn the_same_profile_on_two_routers_gives_two_groups() {
 // Live source canvas, Task 4.
 
 #[test]
-fn tree_exclusion_is_only_for_router_nodes() {
+fn tree_exclusion_accepts_intermediate_nodes_only() {
     let mut d = doc();
     let tower = with_tower(&mut d);
-    let error = refused(
+    // A display-only node (core router, LibreQoS) has no router.
+    let d = run(
         &d,
         json!({"kind": "node.tree_exclude", "node_id": tower, "excluded": true}),
-    );
-    assert!(error.contains("router node"), "{error}");
+    )
+    .unwrap()
+    .candidate;
+    assert!(node(&d, &tower).tree_excluded);
+    let group = d
+        .catalog
+        .as_ref()
+        .unwrap()
+        .nodes
+        .iter()
+        .find(|n| n.kind == NodeKind::SubscriberGroup)
+        .unwrap()
+        .id
+        .clone();
+    for id in ["wan1", group.as_str()] {
+        let error = refused(
+            &d,
+            json!({"kind": "node.tree_exclude", "node_id": id, "excluded": true}),
+        );
+        assert!(error.contains("intermediate node"), "{id}: {error}");
+    }
+    // An excluded node can get and lose a router and stays excluded.
     let d = run(
         &d,
         json!({"kind": "node.router", "node_id": tower, "router_id": "distro"}),
@@ -1931,17 +1952,11 @@ fn tree_exclusion_is_only_for_router_nodes() {
     .candidate;
     let d = run(
         &d,
-        json!({"kind": "node.tree_exclude", "node_id": tower, "excluded": true}),
+        json!({"kind": "node.router", "node_id": tower, "router_id": null}),
     )
     .unwrap()
     .candidate;
     assert!(node(&d, &tower).tree_excluded);
-    // A router node that leaves its router cannot stay excluded.
-    let error = refused(
-        &d,
-        json!({"kind": "node.router", "node_id": tower, "router_id": null}),
-    );
-    assert!(error.contains("router node"), "{error}");
 }
 
 #[test]

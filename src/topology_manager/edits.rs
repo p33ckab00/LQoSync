@@ -94,7 +94,7 @@ pub enum Edit {
         node_id: String,
         list: Option<String>,
     },
-    /// Keep a router node on the canvas, but not in `network.json`.
+    /// Keep an intermediate node on the canvas, but not in `network.json`.
     #[serde(rename = "node.tree_exclude")]
     NodeTreeExclude { node_id: String, excluded: bool },
     /// Do not shape a source, and do not add it again automatically.
@@ -1946,9 +1946,9 @@ pub fn apply(
         Edit::NodeTreeExclude { node_id, excluded } => {
             let c = d.catalog.as_ref().expect("enrolled");
             let i = position(c, node_id)?;
-            if *excluded && c.nodes[i].router_id.is_none() {
+            if *excluded && c.nodes[i].kind != NodeKind::Intermediate {
                 return Err(invalid(
-                    "only a router node can be excluded from the network tree",
+                    "only an intermediate node can be excluded from the network tree",
                 ));
             }
             affected.extend(sources_below(c, &top(c, node_id)));
