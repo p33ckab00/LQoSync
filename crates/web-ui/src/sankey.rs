@@ -88,6 +88,37 @@ fn card_of(n: &web_contract::topology::Node) -> &str {
     }
 }
 
+/// The capacity that a node instance passes on: its calculated rate, or, for a display-only node
+/// or a node without a rate, the sum of what its children get. A parent cycle counts as zero.
+fn rolled(
+    id: &str,
+    nodes: &[web_contract::topology::Node],
+    capacity: &dyn Fn(&web_contract::topology::Node) -> Option<f64>,
+    memo: &mut std::collections::HashMap<String, f64>,
+    depth: usize,
+) -> f64 {
+    if let Some(v) = memo.get(id) {
+        return *v;
+    }
+    let Some(n) = nodes
+        .iter()
+        .find(|x| x.id == id)
+        .filter(|_| depth <= nodes.len())
+    else {
+        return 0.0;
+    };
+    let value = match capacity(n) {
+        Some(c) if !n.tree_excluded => c,
+        _ => nodes
+            .iter()
+            .filter(|c| c.parent.as_deref() == Some(id))
+            .map(|c| rolled(&c.id, nodes, capacity, memo, depth + 1))
+            .sum(),
+    };
+    memo.insert(id.to_string(), value);
+    value
+}
+
 /// Live flows when `t` is fresh, else subscriber flows with `wan: None`. Adds the service tier
 /// cards `tier:ppp`, `tier:dhcp`, `tier:hotspot` (from `Source.access` of each group node).
 pub fn input(summary: &TopologySummary, t: Option<&TopologyThroughput>) -> Input {
@@ -127,6 +158,7 @@ pub fn input(summary: &TopologySummary, t: Option<&TopologyThroughput>) -> Input
             None
         };
         let mut segments: Vec<Segment> = Vec::new();
+        let mut memo = std::collections::HashMap::new();
         for n in &summary.nodes {
             let Some(p) = n.parent.as_deref().and_then(find) else {
                 continue;
@@ -135,7 +167,7 @@ pub fn input(summary: &TopologySummary, t: Option<&TopologyThroughput>) -> Input
             if from == to {
                 continue;
             }
-            let value = capacity(n).unwrap_or(0.0);
+            let value = rolled(&n.id, &summary.nodes, &capacity, &mut memo, 0);
             match segments
                 .iter_mut()
                 .find(|s| s.from == from && s.to == to && s.wan == wan)
@@ -1052,5 +1084,68 @@ mod tests {
             }
         }
         assert!(s.bounds[3] >= long.lanes.iter().map(|l| l.1 + l.2).fold(0.0, f64::max));
+    }
+
+    /// Production shape (2026-11-24): each WAN has one copy of a display-only router (fixed
+    /// 100000 Mbps, no calculated rate), and groups below it with calculated rates.
+    #[test]
+    fn a_display_only_router_carries_what_its_children_get() {
+        let node = |id: &str,
+                    parent: Option<&str>,
+                    kind: &str,
+                    card: &str,
+                    calc: Option<f64>,
+                    excluded: bool|
+         -> Node {
+            serde_json::from_value(json!({"id": id, "name": id, "parent": parent, "kind": kind,
+                "source_id": null, "capacity": {"mode": "fixed", "down_mbps": 100000, "up_mbps": 100000, "factor_percent": null},
+                "alias": false, "calculated_mbps": calc.map(|c| [c, c]), "exported_mbps": null,
+                "members": null, "card_id": card, "tree_excluded": excluded}))
+            .unwrap()
+        };
+        let summary = TopologySummary {
+            nodes: vec![
+                node("wan-1", None, "wan", "wan-1", Some(320.0), false),
+                node("wan-2", None, "wan", "wan-2", Some(320.0), false),
+                node("r1", Some("wan-1"), "intermediate", "router:d", None, true),
+                node("r2", Some("wan-2"), "intermediate", "router:d", None, true),
+                node("g1", Some("r1"), "group", "source:a", Some(100.0), false),
+                node("g2", Some("r1"), "group", "source:b", None, false),
+                node("g3", Some("r1"), "group", "source:c", Some(107.5), false),
+                node("g4", Some("r2"), "group", "source:a", Some(35.0), false),
+            ],
+            ..Default::default()
+        };
+        let i = input(&summary, None);
+        let got = flows(&i);
+        assert!(
+            got.contains(&("wan-1", "router:d", Some("wan-1"), 207.5, None)),
+            "{got:?}"
+        );
+        assert!(
+            got.contains(&("wan-2", "router:d", Some("wan-2"), 35.0, None)),
+            "{got:?}"
+        );
+        assert!(got.contains(&("router:d", "source:a", Some("wan-1"), 100.0, None)));
+        assert!(got.contains(&("router:d", "source:a", Some("wan-2"), 35.0, None)));
+        // A shaped node keeps its own calculated rate, even when its children get less.
+        let mut shaped = summary.clone();
+        shaped.nodes[2] = node(
+            "r1",
+            Some("wan-1"),
+            "intermediate",
+            "router:d",
+            Some(250.0),
+            false,
+        );
+        let shaped_input = input(&shaped, None);
+        let got = flows(&shaped_input)
+            .into_iter()
+            .map(|f| (f.0, f.1, f.2, f.3))
+            .collect::<Vec<_>>();
+        assert!(
+            got.contains(&("wan-1", "router:d", Some("wan-1"), 250.0)),
+            "{got:?}"
+        );
     }
 }
