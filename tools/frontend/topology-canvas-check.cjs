@@ -39,6 +39,29 @@ const fs=require('node:fs');
       assert.ok(a.right<=b.left||b.right<=a.left||a.bottom<=b.top||b.bottom<=a.top,'no card covers another card');
     assert.equal(await canvas.locator('[data-node-id="source:access-ppp"]').count(),1);
     assert.match(await canvas.getByRole('button',{name:/^PPPoE access,/}).getAttribute('aria-label'),/5 subscribers/);
+    // Toolbar: text tabs, revision chips, the live chip, and the WAN legend.
+    assert.match(await page.getByRole('navigation',{name:'Topology views'}).innerText(),/Sankey[\s\S]*Assignments[\s\S]*Policies[\s\S]*Changes/,'the tabs show their text');
+    const chips=page.locator('.sankey-chips');
+    await chips.getByText('Saved rev 42',{exact:true}).waitFor();
+    await chips.getByText(/^(Applied rev \d+|Not applied)$/).waitFor();
+    await chips.getByText(/^Live · \d+s ago$/).waitFor();
+    const legend=page.getByRole('list',{name:'WAN streams'});
+    assert.deepEqual(await legend.locator('li').allInnerTexts(),['WAN North','WAN South']);
+    const lb=await legend.boundingBox();
+    for(const b of await canvas.locator('.sankey-card').evaluateAll(cs=>cs.map(c=>c.getBoundingClientRect().toJSON())))
+      assert.ok(lb.x+lb.width<=b.left||b.right<=lb.x||lb.y+lb.height<=b.top||b.bottom<=lb.y,'the legend covers no card');
+    // Data states, from a changed throughput reply.
+    const rewrite=change=>page.route('**/api/v1/topology/throughput',async r=>{const res=await r.fetch();const j=await res.json();change(j);await r.fulfill({response:res,json:j});});
+    await rewrite(j=>{j.complete=false;j.unmapped_hosts=3;});
+    const partial=chips.getByText('Partial',{exact:true});await partial.waitFor({timeout:12000});
+    assert.match(await partial.getAttribute('title'),/3 hosts have no subscriber/);
+    await page.unroute('**/api/v1/topology/throughput');
+    await rewrite(j=>{j.stale=true;j.complete=false;j.reason='the host sample is old';});
+    await chips.getByText('Subscribers, not live',{exact:true}).waitFor({timeout:12000});
+    assert.equal(await page.locator('[data-metric]').getAttribute('data-metric'),'subscribers');
+    await canvas.getByText('5 subs',{exact:true}).first().waitFor();
+    await page.unroute('**/api/v1/topology/throughput');
+    await chips.getByText(/^Live · /).waitFor({timeout:12000});
     assert.equal(await page.getByText(/instance/i).count(),0,'the word instance never shows');
     const dock=page.getByRole('toolbar',{name:'Topology tools'});
     for(const name of ['Router inventory','Topology settings','Subscriber allocation','Preview and evidence']){

@@ -851,6 +851,36 @@ pub(crate) fn Canvas(
           let [x,y,w,h]=frame_bounds.get();
           format!("--studio-left:{x}px;--studio-top:{y}px;--studio-width:{w}px;--studio-height:{h}px")
         }>
+        <div class="sankey-toolbar">
+          <div class="sankey-chips" role="group" aria-label="Topology state">
+            {move||data.with(|d|d.as_ref().map(|s|{
+              let saved=s.registry_revision.clone().map_or("No saved policy".to_string(),|r|format!("Saved rev {r}"));
+              let applied=s.publication.as_ref().filter(|p|p.phase=="applied").and_then(|p|p.policy_revision.clone());
+              let phase=s.publication.as_ref().map_or("no write yet".to_string(),|p|p.phase.replace('_'," "));
+              view!{
+                <span class="sankey-chip" data-state="ok">{saved}</span>
+                {match applied {
+                  Some(r)=>view!{<span class="sankey-chip" data-state="ok">{format!("Applied rev {r}")}</span>}.into_any(),
+                  None=>view!{<span class="sankey-chip" data-state="warn" title=format!("Last write: {phase}")>"Not applied"</span>}.into_any(),
+                }}
+              }
+            }))}
+            {move||{
+              let (text,state,why)=live_chip(live.get().as_ref(),now());
+              view!{<span class="sankey-chip" data-state=state title=why>{text}</span>}
+            }}
+          </div>
+          <ul class="sankey-legend" aria-label="WAN streams">
+            {move||sk.with(|k|k.as_ref().map(|(i,o)|{
+              let mut shown:Vec<Option<String>>=i.wans.iter().filter(|w|o.ribbons.iter().any(|r|r.wan.as_deref()==Some(w.as_str()))).cloned().map(Some).collect();
+              if o.ribbons.iter().any(|r|r.wan.is_none()) && i.metric==crate::sankey::Metric::LiveMbps { shown.push(None); }
+              shown.into_iter().map(|w|{
+                let tone=wan_tone(&i.wans,w.as_deref());
+                view!{<li><span class="sankey-swatch" data-tone=tone aria-hidden="true"></span>{wan_name(w.as_deref())}</li>}
+              }).collect_view()
+            }))}
+          </ul>
+        </div>
           {move||structural_blocked(data).filter(|_|data.with(Option::is_some)).map(|why|view!{<p class="notice canvas-readonly" role="note">{why}</p>})}
           <Show when=move||list_view.get()>
             <ul class="canvas-list" aria-label="Topology cards">

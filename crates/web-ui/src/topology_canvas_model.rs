@@ -398,6 +398,38 @@ pub(crate) fn value_text(value: Option<f64>, metric: crate::sankey::Metric) -> S
     }
 }
 
+/// The live chip: text, state (`ok`, `warn`, `muted`), and the reason in its tooltip.
+pub(crate) fn live_chip(
+    t: Option<&web_contract::topology::TopologyThroughput>,
+    now: u64,
+) -> (String, &'static str, String) {
+    match t {
+        Some(t) if !t.stale && t.complete => (
+            format!("Live · {}s ago", now.saturating_sub(t.updated)),
+            "ok",
+            "Ribbon width: live download, the exact sum of the hosts on each WAN.".into(),
+        ),
+        Some(t) if !t.stale => (
+            "Partial".into(),
+            "warn",
+            if t.unmapped_hosts > 0 {
+                format!(
+                    "{} hosts have no subscriber. Their rates are in no ribbon.",
+                    t.unmapped_hosts
+                )
+            } else {
+                "The host sample or the placement is incomplete.".into()
+            },
+        ),
+        _ => (
+            "Subscribers, not live".into(),
+            "muted",
+            t.and_then(|t| t.reason.clone())
+                .unwrap_or_else(|| "No host sample. Ribbon width: subscriber count.".into()),
+        ),
+    }
+}
+
 /// The name of a service tier card (`tier:<access>`), else `None`.
 pub(crate) fn tier_name(id: &str) -> Option<&'static str> {
     match id {
@@ -815,5 +847,38 @@ mod tests {
         assert_eq!(value_text(Some(21.0), Metric::Subscribers), "21 subs");
         assert_eq!(tier_name("tier:dhcp"), Some("IPoE / DHCP"));
         assert_eq!(tier_name("source:x"), None);
+    }
+
+    #[test]
+    fn the_live_chip_names_live_partial_and_subscriber_states() {
+        use web_contract::topology::TopologyThroughput;
+        let live = TopologyThroughput {
+            updated: 95,
+            complete: true,
+            ..Default::default()
+        };
+        assert_eq!(live_chip(Some(&live), 100).0, "Live · 5s ago");
+        let partial = TopologyThroughput {
+            updated: 95,
+            unmapped_hosts: 3,
+            ..Default::default()
+        };
+        let (text, state, why) = live_chip(Some(&partial), 100);
+        assert_eq!((text.as_str(), state), ("Partial", "warn"));
+        assert!(why.starts_with("3 hosts have no subscriber"));
+        let stale = TopologyThroughput {
+            stale: true,
+            reason: Some("the host sample is old".into()),
+            ..Default::default()
+        };
+        assert_eq!(
+            live_chip(Some(&stale), 100),
+            (
+                "Subscribers, not live".into(),
+                "muted",
+                "the host sample is old".into()
+            )
+        );
+        assert_eq!(live_chip(None, 100).1, "muted");
     }
 }

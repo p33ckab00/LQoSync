@@ -225,7 +225,7 @@ pub(crate) fn TopologyPage(
               view!{<Link href=format!("/topology?tab={key}") current=Signal::derive(move||key==tab)>
                 <span class=if canvas {"canvas-tab-icon"} else {""} title=*label>
                   {canvas.then(||crate::topology_canvas::icon(path))}
-                  <span class=if canvas {"sr-only"} else {""}>{*label}</span>
+                  <span>{*label}</span>
                 </span>
               </Link>}
             }).collect_view()}

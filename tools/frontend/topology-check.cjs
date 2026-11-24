@@ -52,7 +52,7 @@ const fs=require('node:fs');
     assert.match(await latest.getByRole('list',{name:'Written files'}).innerText(),/ShapedDevices\.csv\s+written[\s\S]*network\.json\s+unchanged/);
     assert.doesNotMatch(await latest.innerText(),/\/opt\//);
     assert.match(await page.getByRole('region',{name:'Web change history'}).innerText(),/Create plan Access 100[\s\S]*browser-test[\s\S]*saved[\s\S]*42 from 41/);
-    await page.getByRole('navigation',{name:'Topology views'}).getByRole('link',{name:'Builder'}).click();
+    await page.getByRole('navigation',{name:'Topology views'}).getByRole('link',{name:'Sankey'}).click();
 
     // Assignments: every saved record, offline included; a deep link opens one subscriber.
     await page.getByRole('navigation',{name:'Topology views'}).getByRole('link',{name:'Assignments'}).click();

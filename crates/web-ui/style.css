@@ -1154,3 +1154,28 @@ dialog.canvas-dialog[data-panel=inventory]{inline-size:min(820px,calc(100vw - 32
 .sankey-minimap-view{fill:none;stroke:var(--accent);stroke-width:1.5;vector-effect:non-scaling-stroke}
 @media (prefers-reduced-motion:reduce){.canvas-wires path.sankey-ribbon{transition:none}}
 @media (max-width:700px){.sankey-minimap{display:none}}
+
+/* The Sankey toolbar row: state chips and the WAN legend, above the canvas. */
+.sankey-toolbar{position:absolute;z-index:3;inset-block-start:12px;inset-inline-end:88px;max-inline-size:calc(100% - 680px);display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:6px 10px}
+@media(max-width:1280px){.sankey-toolbar{inset-block-start:58px;inset-inline-start:12px;max-inline-size:calc(100% - 112px);justify-content:flex-start}}
+@media(max-width:900px){.sankey-toolbar{inset-block-start:162px;max-inline-size:calc(100% - 138px)}}
+.sankey-chips{display:flex;flex-wrap:wrap;gap:6px}
+.sankey-chip{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border:1px solid var(--border);border-radius:999px;background:var(--surface);font-size:13px;line-height:18px;font-variant-numeric:tabular-nums;color:var(--text)}
+.sankey-chip::before{content:"";inline-size:7px;block-size:7px;border-radius:50%;background:var(--muted)}
+.sankey-chip[data-state=ok]::before{background:var(--good)}
+.sankey-chip[data-state=warn]::before{background:var(--warn)}
+.sankey-legend{display:flex;flex-wrap:wrap;gap:4px 14px;margin:0;padding:3px 10px;list-style:none;border:1px solid var(--border);border-radius:999px;background:var(--surface);font-size:13px;line-height:18px;color:var(--muted)}
+.sankey-legend li{display:inline-flex;align-items:center}
+.canvas-tab-icon{display:flex;align-items:center;gap:6px}
+.canvas-tab-icon::after{display:none}
+.topology-head .router-tabs a{inline-size:auto;padding-inline:10px}
+.sankey-legend:empty{display:none}
+/* Narrow screens: the tabs return to icons; the label stays for screen readers. */
+@media(max-width:900px){
+.topology-head .router-tabs a{inline-size:44px;padding:0}
+.canvas-tab-icon>span{position:absolute;inline-size:1px;block-size:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.canvas-tab-icon::after{display:block}
+}
+/* The toolbar overlay never takes a click from the canvas or the heading below it. */
+.sankey-toolbar{pointer-events:none}
+@media(min-width:901px){.sankey-toolbar>*{pointer-events:auto}}

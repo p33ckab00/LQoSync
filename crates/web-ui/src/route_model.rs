@@ -25,7 +25,7 @@ pub(crate) enum Page {
 }
 
 pub(crate) const TOPOLOGY_TABS: [(&str, &str); 4] = [
-    ("builder", "Builder"),
+    ("builder", "Sankey"),
     ("assignments", "Assignments"),
     ("policies", "Policies"),
     ("changes", "Changes"),

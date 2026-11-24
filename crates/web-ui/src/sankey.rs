@@ -60,7 +60,7 @@ pub struct Sankey {
 pub const CARD_W: f64 = 232.0;
 pub const COL_GAP: f64 = 168.0;
 pub const GAP: f64 = 14.0;
-pub const MIN_H: f64 = 104.0;
+pub const MIN_H: f64 = 112.0;
 /// The band height of the column with the largest total value.
 pub const MAX_BAND: f64 = 280.0;
 
