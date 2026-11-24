@@ -47,6 +47,13 @@ cd "$REPO"
 cargo build --locked -q -j2 --example studio_core --example fake_routeros
 cargo build --locked -q -j2 -p web-gateway --example studio_gateway
 BIN="$REPO/target/debug/examples"
+# With Playwright, the gateway serves the real Wasm UI and a browser drives it (task I0).
+UI=0
+if [ -n "${PLAYWRIGHT_MODULE:-}" ] && [ -n "${CHROMIUM_PATH:-}" ]; then
+  UI=1
+  (cd crates/web-ui && "${TRUNK:-trunk}" build --locked -q) && python3 tools/frontend/prepare-dist.py
+  inside "$ROOT/web-dist"; cp -r crates/web-ui/dist "$ROOT/web-dist"
+fi
 
 STATE="$ROOT/state"; LQOS="$ROOT/lqos"; CONFIG="$ROOT/lqosync3.toml"; SECRET="$ROOT/router.password"
 for p in "$STATE" "$LQOS" "$CONFIG" "$SECRET" "$ROOT/dpkg-status"; do inside "$p"; done
@@ -83,6 +90,7 @@ EOF
 "$BIN/fake_routeros" "$RPORT" "$ROUTER_PASSWORD" > "$ROOT/router.log" 2>&1 & PIDS+=($!)
 SMOKE_ROOT="$ROOT" "$BIN/studio_core" "$CONFIG" > "$ROOT/core.log" 2>&1 & PIDS+=($!)
 SMOKE_ROOT="$ROOT" SMOKE_STATE="$STATE" SMOKE_PORT="$WPORT" SMOKE_PASSWORD="$WEB_PASSWORD" \
+  SMOKE_DIST="$([ "$UI" = 1 ] && echo "$ROOT/web-dist")" \
   "$BIN/studio_gateway" > "$ROOT/gateway.log" 2>&1 & PIDS+=($!)
 for _ in $(seq 1 120); do
   [ -S "$STATE/api.sock" ] && [ -f "$STATE/source-studio.json" ] && curl -s -o /dev/null "$B/api/v1/session" && break
@@ -167,6 +175,16 @@ op smoke-collect-000000002
 req "$B/api/v1/routers/$RID/source-config" > /dev/null
 V=$(json '",".join("%s=%s" % (w["interface"], w["decision"]) for w in d["wan_candidates"] if w["decision"])')
 check "WAN evidence shows the saved decision" '[ "$V" = pppoe-out1=pin ]'
+
+if [ "$UI" = 1 ]; then
+  mkdir -p "$ROOT/ui"
+  check "the real UI previews and saves a policy through the service" \
+    'STUDIO_URL="$B" STUDIO_PASSWORD="$WEB_PASSWORD" STUDIO_OUT="$ROOT/ui" node tools/integration/studio-ui-check.cjs > "$ROOT/ui.log" 2>&1'
+  note "  $(tail -1 "$ROOT/ui.log")"
+  check "the registry holds the policy that the UI saved" 'grep -q "PPPoE from UI" "$STATE/topology-manager/registry.json"'
+else
+  note "SKIP real UI stage: set PLAYWRIGHT_MODULE and CHROMIUM_PATH"
+fi
 
 check "the fake router saw no write or other command" '! grep -q "^REFUSED" "$ROOT/router.log"'
 check "no password in any log" '! grep -rq -e "$ROUTER_PASSWORD" -e "$WEB_PASSWORD" "$ROOT"/*.log'

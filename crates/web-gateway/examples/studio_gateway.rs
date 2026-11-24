@@ -24,7 +24,18 @@ async fn main() -> anyhow::Result<()> {
     let web = root.join("web");
     std::fs::create_dir_all(web.join("dist"))?;
     std::fs::set_permissions(&web, std::fs::Permissions::from_mode(0o700))?;
-    std::fs::write(web.join("dist/index.html"), "<html>smoke</html>")?;
+    // SMOKE_DIST: a copy of the real Wasm UI under SMOKE_ROOT. Without it, a placeholder page.
+    let dist = match std::env::var("SMOKE_DIST").ok().filter(|d| !d.is_empty()) {
+        Some(d) => PathBuf::from(d),
+        None => {
+            std::fs::write(web.join("dist/index.html"), "<html>smoke</html>")?;
+            web.join("dist")
+        }
+    };
+    anyhow::ensure!(
+        dist.starts_with(&root),
+        "SMOKE_DIST must be under SMOKE_ROOT"
+    );
     let accounts = Accounts::new(web.join("accounts.db"))?;
     accounts.create("smoke-operator", &std::env::var("SMOKE_PASSWORD")?)?;
     let socket = web.join("broker.sock");
@@ -41,9 +52,9 @@ async fn main() -> anyhow::Result<()> {
             sessions: Sessions::new(web.join("sessions.db"))?,
             origin,
             secure: false,
-            index: Arc::new(std::fs::read_to_string(web.join("dist/index.html"))?),
+            index: Arc::new(std::fs::read_to_string(dist.join("index.html"))?),
         },
-        web.join("dist"),
+        dist,
     );
     let listener = tokio::net::TcpListener::bind(("127.0.0.1", port)).await?;
     println!("READY smoke gateway on loopback {port}");
