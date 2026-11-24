@@ -3,7 +3,8 @@ use web_contract::source_studio::{IdentityMode, WriteGrant, WriteScope};
 
 fn cfg(extra: &str) -> Config {
     Config::from_toml_str(&format!(
-        "[[routers]]\nname='Core'\naddress='192.0.2.1'\nusername='u'\npassword_file='/x'\n{extra}"
+        "[[routers]]\nname='Core'\naddress='192.0.2.1'\nusername='u'\npassword_file='/x'\n{extra}\
+         [routers.pppoe]\nenabled=true\n[routers.dhcp]\nenabled=true\nrequire_bound=true\n"
     ))
     .unwrap()
 }
@@ -258,6 +259,28 @@ fn input_limits_reject_the_request() {
     assert!(check_limits(&[ppp(), dhcp("d", 1, &["LAN"])]).is_ok());
 }
 
+#[test]
+fn a_read_profile_other_than_default_is_a_blocker() {
+    let c =
+        cfg("access_profiles=[{id='reader',label='Reader',username='ro',password_file='/r'}]\n");
+    let mut p = ppp();
+    p.read_access_ref = "reader".into();
+    let (intent, issues) = translate(&c, &c.routers[0], &[p]);
+    assert!(intent.ppp.is_none());
+    assert_eq!(codes(&issues), [("unsupported_in_v1", "policy-ppp")]);
+}
+
+#[test]
+fn factors_are_exact_fractions() {
+    let f = |t: &str| fraction(t).map(|x| (x.numerator, x.denominator));
+    assert_eq!(f("0.5"), Some((5, 10)));
+    assert_eq!(f("1.25"), Some((125, 100)));
+    assert_eq!(f("2"), Some((2, 1)));
+    assert_eq!(f("0"), None, "a zero factor shapes nothing");
+    assert_eq!(f("0.1234567"), None, "at most six places");
+    assert_eq!(f("x"), None);
+}
+
 // ---- B3.2: the engine run on a clone ----
 
 mod engine {
@@ -416,6 +439,7 @@ mod engine {
             doc,
             &e.coordinator,
             &e.studio,
+            D,
             &e.id,
             snap,
             drafts,
@@ -624,6 +648,7 @@ mod engine {
             &doc,
             &e.coordinator,
             &e.studio,
+            D,
             &e.id,
             &snap,
             &[ppp()],
@@ -635,11 +660,95 @@ mod engine {
             &doc,
             &e.coordinator,
             &e.studio,
+            D,
             &router_id("Other"),
             &snap,
             &[ppp()],
             0,
         );
         assert!(other.is_err());
+        // A snapshot of another loaded config is not evidence, for a preview or a save.
+        let reloaded = evaluate(
+            &e.cfg,
+            &doc,
+            &e.coordinator,
+            &e.studio,
+            "digest-2",
+            &e.id,
+            &snap,
+            &[ppp()],
+            0,
+        );
+        assert!(reloaded.is_err());
+        let (intent, _) = translate(&e.cfg, &e.cfg.routers[0], &[ppp()]);
+        let router = &e.cfg.routers[0];
+        assert!(saved_evidence(&e.cfg, router, &e.studio, "digest-2", &intent, 0).is_err());
+        assert!(saved_evidence(&e.cfg, router, &e.studio, D, &intent, 0).is_ok());
+    }
+
+    #[tokio::test]
+    async fn a_dhcp_server_set_follows_the_config_discovery_rule() {
+        let rows = || {
+            let mut rows = Rows::new();
+            rows.insert(
+                "/ip/dhcp-server",
+                vec![row(&[
+                    (".id", "*s"),
+                    ("name", "LAN"),
+                    ("disabled", "false"),
+                ])],
+            );
+            rows.insert(
+                "/ip/dhcp-server/lease",
+                vec![row(&[
+                    (".id", "*l"),
+                    ("server", "LAN"),
+                    ("status", "bound"),
+                    ("active-address", "100.64.1.5"),
+                    ("active-mac-address", "02:00:00:00:00:05"),
+                ])],
+            );
+            rows
+        };
+        let mut all = dhcp("policy-dhcp", 1, &["LAN"]);
+        all.filter = FilterExpr::All { rules: vec![] };
+        // A discovering router: a policy without a filter takes every current server.
+        let mut e = env("[routers.dhcp]\nenabled=true\nrequire_bound=true\n", rows());
+        let (doc, snap) = installed(&mut e, &[SourceKind::Dhcp]).await;
+        let ev = run(&e, &doc, &snap, &[all.clone()]);
+        assert!(ev.publishable(), "{:?}", ev.issues);
+        assert_eq!(ev.records.len(), 1, "the LAN lease is in the policy");
+        // A router that lists its servers and does not discover: the policy must name them.
+        let listed = "[routers.dhcp]\nenabled=true\nrequire_bound=true\ndiscover=false\n\
+                      [[routers.dhcp.servers]]\nname='LAN'\n";
+        let mut e = env(listed, rows());
+        let (doc, snap) = installed(&mut e, &[SourceKind::Dhcp]).await;
+        let ev = run(&e, &doc, &snap, &[all]);
+        assert_eq!(
+            blockers(&ev),
+            ["unsupported_in_v1"],
+            "no silent server change"
+        );
+        let named = run(&e, &doc, &snap, &[dhcp("policy-dhcp", 1, &["LAN"])]);
+        assert!(named.publishable(), "{:?}", named.issues);
+    }
+}
+
+#[test]
+fn a_policy_needs_its_source_enabled_in_the_router_config() {
+    let c = Config::from_toml_str(
+        "[[routers]]\nname='Core'\naddress='192.0.2.1'\nusername='u'\npassword_file='/x'\n",
+    )
+    .unwrap();
+    for p in [ppp(), dhcp("d", 1, &["LAN"])] {
+        let (intent, issues) = translate(&c, &c.routers[0], &[p]);
+        assert_eq!(intent, RouterIntent::default());
+        assert!(
+            codes(&issues)
+                .iter()
+                .all(|(code, _)| *code == "unsupported_in_v1"),
+            "{issues:?}"
+        );
+        assert!(!issues.is_empty());
     }
 }

@@ -147,6 +147,15 @@ fn fingerprint(d: &DraftConnection) -> String {
     )
 }
 
+/// The addresses of a router name, or the address itself. A failed or slow lookup gives none.
+async fn addresses(host: &str) -> Vec<std::net::IpAddr> {
+    let lookup = tokio::net::lookup_host((host, 0));
+    match tokio::time::timeout(Duration::from_secs(5), lookup).await {
+        Ok(Ok(found)) => found.map(|a| a.ip()).collect(),
+        _ => Vec::new(),
+    }
+}
+
 /// One bounded test: TCP, TLS, login, identity, then read permission on the source tables.
 /// A disabled registered router with the same address and port gets no connection.
 pub async fn draft_test<C: Connector>(
@@ -161,10 +170,20 @@ pub async fn draft_test<C: Connector>(
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |t| t.as_secs());
     let mut checks = Vec::new();
-    let disabled = cfg
-        .routers
-        .iter()
-        .any(|r| !r.enabled && r.port == d.port && r.address.eq_ignore_ascii_case(&d.address));
+    // A disabled router gets no connection on any port, by any name of the same address.
+    let draft_ips = addresses(&d.address).await;
+    let mut disabled = false;
+    for r in cfg.routers.iter().filter(|r| !r.enabled) {
+        if r.address.eq_ignore_ascii_case(&d.address)
+            || addresses(&r.address)
+                .await
+                .iter()
+                .any(|ip| draft_ips.contains(ip))
+        {
+            disabled = true;
+            break;
+        }
+    }
     if disabled {
         checks.push(check(TestStage::Transport, CheckState::Failed, "disabled"));
     } else {
@@ -366,10 +385,26 @@ mod tests {
             (TestStage::Transport, CheckState::Failed, "disabled".into())
         );
         assert!(r.checks[1..].iter().all(|c| c.state == CheckState::NotRun));
-        // The same address on another port is another router.
+        // Another API port of the same router is the same router.
         let mut other = draft("192.0.2.9");
         other.port = 8728;
-        draft_test(&fake, &c, &other, &[]).await.unwrap();
+        let r = draft_test(&fake, &c, &other, &[]).await.unwrap();
+        assert_eq!(r.checks[0].code, "disabled");
+        // Another name of the same address is the same router.
+        let named = Config::from_toml_str(
+            "[[routers]]\nname='Core'\naddress='192.0.2.1'\nusername='u'\npassword_file='/x'\n\
+             [[routers]]\nname='Spare'\nenabled=false\naddress='localhost'\nusername='u'\npassword_file='/y'\n",
+        )
+        .unwrap();
+        let r = draft_test(&fake, &named, &draft("127.0.0.1"), &[])
+            .await
+            .unwrap();
+        assert_eq!(r.checks[0].code, "disabled");
+        assert!(fake.connects.lock().unwrap().is_empty());
+        // Another address is another router.
+        draft_test(&fake, &c, &draft("198.51.100.7"), &[])
+            .await
+            .unwrap();
         assert_eq!(fake.connects.lock().unwrap().len(), 1);
     }
 

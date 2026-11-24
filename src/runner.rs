@@ -971,6 +971,7 @@ where
             &doc,
             &self.topology_sources,
             &self.studio,
+            &self.config_digest,
             router_id,
             snapshot_id,
             policies,
@@ -2697,7 +2698,16 @@ where
             .map_or(0, |d| d.as_secs());
         // An empty intent (no enabled policy) needs no evidence: it removes the policy sources.
         let current = (intent.ppp.is_some() || !intent.dhcp.is_empty())
-            .then(|| ev::saved_evidence(&self.cfg, &router, &self.studio, &intent, now))
+            .then(|| {
+                ev::saved_evidence(
+                    &self.cfg,
+                    &router,
+                    &self.studio,
+                    &self.config_digest,
+                    &intent,
+                    now,
+                )
+            })
             .transpose()
             .map_err(rule)?;
         let mut candidate =

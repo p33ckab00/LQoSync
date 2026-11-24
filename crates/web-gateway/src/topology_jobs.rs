@@ -570,7 +570,13 @@ impl Jobs {
         let key = request.key;
         let bytes = serde_json::to_vec(&request.job).map_err(|_| Refused::Invalid)?;
         drop(request.job);
-        let digest: String = Sha256::digest(&bytes)
+        // A random key of this process: the kept digest of a draft test cannot be checked
+        // against a guessed password.
+        static DIGEST_KEY: std::sync::OnceLock<[u8; 32]> = std::sync::OnceLock::new();
+        let digest: String = Sha256::new()
+            .chain_update(DIGEST_KEY.get_or_init(rand::random))
+            .chain_update(&bytes)
+            .finalize()
             .iter()
             .map(|b| format!("{b:02x}"))
             .collect();

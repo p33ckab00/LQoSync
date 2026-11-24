@@ -254,6 +254,13 @@ pub fn translate(
                 None,
                 "Select an access profile of this router.",
             ));
+        } else if p.read_access_ref != DEFAULT_PROFILE {
+            // Collection and the cycle read with the router credential only.
+            issues.push(blocker(
+                &id,
+                None,
+                "Version 1 reads with the router credential (profile default) only.",
+            ));
         }
         if p.writes.iter().any(|w| w.enabled) {
             issues.push(blocker(
@@ -292,6 +299,14 @@ pub fn translate(
                 "Classify WAN interfaces with WAN decisions, not with a source policy.",
             )),
             SourceKind::Ppp => {
+                // The cycle reads only a protocol that the router config enables.
+                if p.enabled && !router.pppoe.enabled {
+                    issues.push(blocker(
+                        &id,
+                        None,
+                        "Enable PPP in the router settings first: the cycle reads only enabled sources.",
+                    ));
+                }
                 if p.members != MemberMode::Joined {
                     issues.push(blocker(&id, None, "A PPP policy uses joined members in version 1."));
                 }
@@ -328,6 +343,14 @@ pub fn translate(
                 }
             }
             SourceKind::Dhcp => {
+                let d = &router.dhcp;
+                if p.enabled && !(d.enabled && d.require_bound && !d.shape_unassigned) {
+                    issues.push(blocker(
+                        &id,
+                        None,
+                        "Set the router DHCP settings first: enabled, require_bound = true, shape_unassigned = false.",
+                    ));
+                }
                 if p.members != MemberMode::Active {
                     issues.push(blocker(&id, None, "A DHCP policy uses active members in version 1."));
                 }
@@ -374,6 +397,28 @@ pub fn translate(
                     ));
                 }
             }
+        }
+    }
+    // A router that does not discover DHCP servers shapes exactly its listed servers; the
+    // engine preflight refuses any other set. Name them all, with a server filter.
+    if !router.dhcp.discover && !dhcp.is_empty() {
+        let declared: BTreeSet<&str> = router
+            .dhcp
+            .servers
+            .iter()
+            .map(|s| s.name.as_str())
+            .collect();
+        let named: Option<BTreeSet<&str>> = dhcp
+            .iter()
+            .map(|(_, d)| d.servers.as_ref())
+            .collect::<Option<Vec<_>>>()
+            .map(|lists| lists.into_iter().flatten().map(String::as_str).collect());
+        if named.as_ref() != Some(&declared) {
+            issues.push(blocker(
+                &dhcp[0].1.policy_id,
+                Some(FieldKey::LeaseServer),
+                "This router lists its DHCP servers and does not discover them: name exactly those servers.",
+            ));
         }
     }
     // Equal-priority policies that can own the same server are a blocker. A tie is never
@@ -570,6 +615,24 @@ pub fn candidate(
         .ok_or("the topology has no source settings")?;
     settings.selections.retain(|s| s.scope.router_id != rid);
     settings.selections.extend(draft.source_settings.selections);
+    // The subscriber roles follow the translation; a WAN role stays. The cycle reads a
+    // protocol only when the catalog router has its role.
+    use crate::topology_manager::catalog::RouterRole;
+    let roles: Vec<RouterRole> = draft
+        .catalog
+        .routers
+        .iter()
+        .flat_map(|r| r.roles.clone())
+        .collect();
+    let cat = c
+        .catalog
+        .as_mut()
+        .ok_or("the topology is not initialized")?;
+    if let Some(r) = cat.routers.iter_mut().find(|r| r.id == rid) {
+        r.roles.retain(|x| *x == RouterRole::Wan);
+        r.roles
+            .extend(roles.into_iter().filter(|x| *x != RouterRole::Wan));
+    }
     c.validate().map_err(|e| format!("{e:#}"))?;
     Ok(c)
 }
@@ -632,13 +695,16 @@ pub(crate) fn saved_evidence(
     cfg: &Config,
     router: &RouterCfg,
     studio: &Studio,
+    loaded_digest: &str,
     intent: &RouterIntent,
     now: u64,
 ) -> Result<CurrentRouter, String> {
     let id = router_id(&router.name);
+    // A snapshot of another config (for example another router address) is not evidence.
     let snap = studio
         .latest(&id, now)
-        .ok_or("collect_router_first: the save uses the newest snapshot of this router")?;
+        .filter(|s| s.reference.config_digest == loaded_digest)
+        .ok_or("collect_router_first: the save uses the newest snapshot of the loaded config")?;
     for t in tables_for(intent) {
         let complete = snap
             .reference
@@ -673,6 +739,7 @@ pub(crate) fn evaluate<C: Connector + 'static>(
     doc: &RegistryDocument,
     coordinator: &Coordinator<C>,
     studio: &Studio,
+    loaded_digest: &str,
     id: &str,
     snapshot_id: &str,
     policies: &[SourcePolicyDraft],
@@ -689,8 +756,8 @@ where
         .ok_or("This router is not in the loaded configuration.")?;
     let snapshot = studio
         .snapshot(snapshot_id, now)
-        .filter(|s| s.reference.router_id == id)
-        .ok_or("The snapshot expired or belongs to another router. Collect again.")?;
+        .filter(|s| s.reference.router_id == id && s.reference.config_digest == loaded_digest)
+        .ok_or("The snapshot expired, belongs to another router, or has another config. Collect again.")?;
     let (intent, mut issues) = translate(cfg, router, policies);
     if issues.iter().any(|i| i.severity == Severity::Blocker) {
         return Ok(Evaluation::stopped(issues));
@@ -786,7 +853,10 @@ where
         .filter(|r| r != id)
         .collect();
     for other in others {
-        match studio.latest(&other, now) {
+        match studio
+            .latest(&other, now)
+            .filter(|c| c.reference.config_digest == loaded_digest)
+        {
             Some(c) => evidence.push((other, c.tables_snapshot())),
             None => issues.push(issue("collect_router_first", Severity::Blocker, &other, None, "Collect this router, then evaluate again. The evaluation uses its current evidence.")),
         }

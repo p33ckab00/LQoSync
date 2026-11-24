@@ -381,7 +381,7 @@ A route that the service does not have returns `404`, so the frontend treats tha
 | Draft test checks | `checks` always has one entry for each of the five stages, in order. A stage after a failure is `not_run`. Without TLS, the `tls` stage is `not_run` with `tls_off`. |
 | Check codes | `ok`, `unreachable`, `tls`, `login`, `timeout`, `trap`, `protocol`, `disabled`, `tls_off`, `not_run`. |
 | Table permission | One check for all tables of `required_sources`. The first table that fails gives the code. No source gives `not_run`. |
-| Disabled router | A draft with the address and port of a disabled registered router fails `transport` with `disabled`. It makes no connection. |
+| Disabled router | A draft whose address is, or resolves to, an address of a disabled registered router fails `transport` with `disabled`, on any port. It makes no connection. A failed name lookup counts as no match. |
 | Fingerprint | `connection_fingerprint` names address, port, TLS settings, username, and CA text. It does not use the password. |
 | Refusal | An invalid draft gives a `failed` operation with a safe `error`. A source job without the session token gives `403`. Collection and evaluation jobs give `404` with `unavailable`. |
 | Access profiles | `RouterEdit.access_profiles` saves through the router edit and its config digest. The entry `default` changes the router credential. A new secret needs `current_password`. Profiles appear in `RouterSourceConfig` with task B2. |
@@ -405,12 +405,13 @@ Owner decision: the service translates each draft into the current engine struct
 
 | Item | Task B3 behavior |
 | --- | --- |
-| Supported drafts | PPP: one enabled policy for each router, `members: joined`, no filter, `group` by `account.profile` or `fixed`. DHCP: `members: active`, filter `lease.server` with `eq` or `in` (or none), `group` by `lease.server`, per-site servers. |
+| Supported drafts | PPP: one enabled policy for each router, `members: joined`, no filter, `group` by `account.profile` or `fixed`. DHCP: `members: active`, filter `lease.server` with `eq` or `in` (or none), `group` by `lease.server`, per-site servers. `read_access_ref` must be `default`: reads use the router credential. |
 | Rates | A leading `subscriber_override`, then the configured engine order of the source. The default PPP order is `account_comment`, `active_comment`, `profile_comment`, `profile_rate_limit`, `profile_name`, `settings`. The default per-site DHCP order is `server_comment`, `settings`. |
 | Capacity | `from_plans` with plan factors only. Fixed capacity and minimum rates are not supported in version 1. |
 | Other drafts | A blocker `unsupported_in_v1` with the reason, for example Hotspot (no reference authority) or WAN (use WAN decisions). |
+| Router config | The engine binds policies to the router config. A PPP policy needs `pppoe.enabled`. A DHCP policy needs `dhcp.enabled`, `require_bound = true`, and `shape_unassigned = false`. When the config lists its DHCP servers with `discover = false`, the enabled DHCP policies must name exactly those servers. Otherwise the draft is a blocker. |
 | Other blockers | `priority_overlap`, `unknown_access_profile`, `invalid_name`, `invalid_capacity`, `partial_table`, `failed_table`, `missing_ppp_join`, `collect_router_first` (another router with a selected source has no Studio snapshot), `conflict` (engine preparation conflict), `engine_refused`. |
-| Evidence | The target router uses the named snapshot. Each other router with a selected source uses its newest Studio snapshot. Only complete tables count. |
+| Evidence | The target router uses the named snapshot. Each other router with a selected source uses its newest Studio snapshot. Only complete subscriber tables count. A snapshot of another loaded config (another `config_digest`) is refused. |
 | Engine | Current identity authorization, reconciliation, resolver, aggregate, and pair preparation (compiler admission), on a registry clone with a fresh observation gate. No router read and no durable change. |
 | Records | Records of the target router only. `identity_ref` is the engine identity. A record without a saved subscriber has `issue_codes: ["new_identity"]`. `speed_source` is `subscriber_override` for a saved subscriber plan, otherwise `null` (the engine does not report the winning source). Rates are the engine maximum rates. |
 | Graph | The web projection of the candidate. A node that the saved catalog does not have has a `draft:` ID. The diff compares catalog nodes (name and parent). |
