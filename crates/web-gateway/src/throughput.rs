@@ -57,8 +57,10 @@ struct Sum {
     rtt: Vec<f64>,
 }
 
-/// Join one host sample to one topology view. A node sum includes its subtree; a flow is the
-/// subtree sum of its child node, keyed like the canvas flows.
+/// Join one host sample to one topology view. A node sum includes its subtree. A flow is one
+/// WAN stream between two canvas cards: the sum of the hosts whose tree path crosses that pair.
+/// The WAN of a host is the nearest WAN node on its path, else its routing WAN. A path without a
+/// WAN node starts with a flow from the routing WAN card.
 pub fn compute(view: &TopologyView, telemetry: Option<&Telemetry>, now: u64) -> TopologyThroughput {
     let Some(t) = telemetry.filter(|t| t.version == 1) else {
         return TopologyThroughput {
@@ -68,14 +70,14 @@ pub fn compute(view: &TopologyView, telemetry: Option<&Telemetry>, now: u64) -> 
         };
     };
     let live = !t.stale && t.updated > 0 && now >= t.updated && now - t.updated <= MAX_AGE;
-    let owner: HashMap<IpAddr, &str> = view
+    let owner: HashMap<IpAddr, (&str, Option<&str>)> = view
         .subscribers
         .iter()
         .filter_map(|s| s.active.as_ref())
         .flat_map(|a| {
             a.ips
                 .iter()
-                .filter_map(|ip| Some((ip.parse().ok()?, a.node.as_str())))
+                .filter_map(|ip| Some((ip.parse().ok()?, (a.node.as_str(), a.wan.as_deref()))))
         })
         .collect();
     let parent: HashMap<&str, &str> = view
@@ -83,28 +85,11 @@ pub fn compute(view: &TopologyView, telemetry: Option<&Telemetry>, now: u64) -> 
         .iter()
         .filter_map(|n| Some((n.id.as_str(), n.parent.as_deref()?)))
         .collect();
-    let mut sums: HashMap<&str, Sum> = HashMap::new();
-    let (mut unmapped, mut sampled) = (0u64, 0usize);
-    for (ip, rate) in t.hosts.values().flat_map(|ips| ips.iter()) {
-        sampled += 1;
-        let Some(node) = owner.get(ip) else {
-            unmapped += 1;
-            continue;
-        };
-        let (down, up) = (bps(rate.down_mbps), bps(rate.up_mbps));
-        let mut at = Some(*node);
-        // A parent cycle cannot loop: at most one step for each node.
-        for _ in 0..=view.nodes.len() {
-            let Some(id) = at else { break };
-            let s = sums.entry(id).or_default();
-            s.down = s.down.saturating_add(down);
-            s.up = s.up.saturating_add(up);
-            s.hosts += 1;
-            s.rtt
-                .extend(rate.rtt_ms.filter(|v| v.is_finite() && *v >= 0.0));
-            at = parent.get(id).copied();
-        }
-    }
+    let is_wan: HashMap<&str, bool> = view
+        .nodes
+        .iter()
+        .map(|n| (n.id.as_str(), n.kind == "wan"))
+        .collect();
     // The canvas card of a node; an older cache without one uses the node ID.
     let card: HashMap<&str, &str> = view
         .nodes
@@ -120,19 +105,49 @@ pub fn compute(view: &TopologyView, telemetry: Option<&Telemetry>, now: u64) -> 
             )
         })
         .collect();
-    let mut lines: BTreeMap<(String, String), (u64, u64)> = BTreeMap::new();
-    for n in &view.nodes {
-        let (Some(from), Some(s)) = (
-            n.parent.as_deref().and_then(|p| card.get(p)),
-            sums.get(n.id.as_str()),
-        ) else {
+    let card_of = |id: &'_ str| card.get(id).copied().unwrap_or(id).to_string();
+    let mut sums: HashMap<&str, Sum> = HashMap::new();
+    let mut lines: BTreeMap<(String, String, Option<String>), (u64, u64)> = BTreeMap::new();
+    let (mut unmapped, mut sampled) = (0u64, 0usize);
+    for (ip, rate) in t.hosts.values().flat_map(|ips| ips.iter()) {
+        sampled += 1;
+        let Some((node, routing_wan)) = owner.get(ip) else {
+            unmapped += 1;
             continue;
         };
-        let line = lines
-            .entry((from.to_string(), card[n.id.as_str()].to_string()))
-            .or_default();
-        line.0 = line.0.saturating_add(s.down);
-        line.1 = line.1.saturating_add(s.up);
+        let (down, up) = (bps(rate.down_mbps), bps(rate.up_mbps));
+        // The path from the host node up to the root. A parent cycle cannot loop: at most one
+        // step for each node.
+        let mut path: Vec<&str> = Vec::new();
+        let mut at = Some(*node);
+        for _ in 0..=view.nodes.len() {
+            let Some(id) = at else { break };
+            let s = sums.entry(id).or_default();
+            s.down = s.down.saturating_add(down);
+            s.up = s.up.saturating_add(up);
+            s.hosts += 1;
+            s.rtt
+                .extend(rate.rtt_ms.filter(|v| v.is_finite() && *v >= 0.0));
+            path.push(id);
+            at = parent.get(id).copied();
+        }
+        let tree_wan = path
+            .iter()
+            .copied()
+            .find(|id| is_wan.get(id) == Some(&true));
+        let wan = tree_wan.or(*routing_wan);
+        let mut cards: Vec<String> = path.iter().rev().map(|id| card_of(id)).collect();
+        if let (None, Some(w)) = (tree_wan, wan) {
+            cards.insert(0, card_of(w));
+        }
+        cards.dedup();
+        for pair in cards.windows(2) {
+            let line = lines
+                .entry((pair[0].clone(), pair[1].clone(), wan.map(str::to_string)))
+                .or_default();
+            line.0 = line.0.saturating_add(down);
+            line.1 = line.1.saturating_add(up);
+        }
     }
     let placement_current = view.observed.as_ref().is_some_and(|o| !o.stale);
     let mut nodes: Vec<NodeThroughput> = view
@@ -166,10 +181,10 @@ pub fn compute(view: &TopologyView, telemetry: Option<&Telemetry>, now: u64) -> 
         nodes,
         flows: lines
             .into_iter()
-            .map(|((from, to), (down, up))| FlowThroughput {
+            .map(|((from, to, wan), (down, up))| FlowThroughput {
                 from,
                 to,
-                wan: None,
+                wan,
                 down_bps: down,
                 up_bps: up,
             })
@@ -280,6 +295,10 @@ mod tests {
                 ("wan-2", "source:ppp", 30_000_000)
             ]
         );
+        assert_eq!(
+            t.flows.iter().map(|f| f.wan.as_deref()).collect::<Vec<_>>(),
+            [Some("wan-1"), Some("wan-2")]
+        );
     }
 
     #[test]
@@ -332,5 +351,172 @@ mod tests {
             (0, 0)
         );
         assert_eq!(node(&out, "wan-1").rtt_ms, None);
+    }
+
+    /// A view from `(id, parent, kind, card)` nodes and `(id, node, ip, routing wan)` subscribers.
+    fn tree(
+        nodes: &[(&str, Option<&str>, &str, &str)],
+        subs: &[(&str, &str, &str, Option<&str>)],
+    ) -> TopologyView {
+        let mut v = view(false);
+        v.nodes = nodes
+            .iter()
+            .map(|(id, parent, kind, card)| {
+                serde_json::from_value(json!({"id": id, "name": id, "parent": parent, "kind": kind,
+                    "source_id": null, "capacity": {"mode": "automatic"}, "alias": false,
+                    "calculated_mbps": null, "exported_mbps": null, "members": null, "card_id": card}))
+                .unwrap()
+            })
+            .collect();
+        v.subscribers = subs
+            .iter()
+            .map(|(id, node, ip, wan)| {
+                serde_json::from_value(json!({"id": id, "identities": [], "plan_id": null, "pin": null,
+                    "assignment": null, "active": {"node": node, "ips": [ip], "min_mbps": [1.0, 1.0],
+                    "max_mbps": [1.0, 1.0], "fallback": false, "wan": wan}}))
+                .unwrap()
+            })
+            .collect();
+        v
+    }
+
+    /// The three sample hosts 100.64.0.1..3 download 10, 20, and 30 Mbps.
+    fn flows(t: &TopologyThroughput) -> Vec<(&str, &str, Option<&str>, u64)> {
+        t.flows
+            .iter()
+            .map(|f| (f.from.as_str(), f.to.as_str(), f.wan.as_deref(), f.down_bps))
+            .collect()
+    }
+
+    #[test]
+    fn flows_split_by_wan_along_the_whole_path() {
+        let v = tree(
+            &[
+                ("wan-1", None, "wan", "wan-1"),
+                ("wan-2", None, "wan", "wan-2"),
+                ("distro-1", Some("wan-1"), "intermediate", "router:distro"),
+                ("distro-2", Some("wan-2"), "intermediate", "router:distro"),
+                ("ppp-1", Some("distro-1"), "group", "source:ppp"),
+                ("ppp-2", Some("distro-2"), "group", "source:ppp"),
+            ],
+            &[
+                ("s1", "ppp-1", "100.64.0.1", None),
+                ("s2", "ppp-1", "100.64.0.2", None),
+                ("s3", "ppp-2", "100.64.0.3", None),
+            ],
+        );
+        let t = compute(&v, Some(&sample(100, &[])), 101);
+        assert_eq!(
+            flows(&t),
+            [
+                ("router:distro", "source:ppp", Some("wan-1"), 30_000_000),
+                ("router:distro", "source:ppp", Some("wan-2"), 30_000_000),
+                ("wan-1", "router:distro", Some("wan-1"), 30_000_000),
+                ("wan-2", "router:distro", Some("wan-2"), 30_000_000),
+            ]
+        );
+    }
+
+    #[test]
+    fn a_display_parent_before_the_wan_carries_the_wan_stream() {
+        let v = tree(
+            &[
+                ("core", None, "intermediate", "core"),
+                ("wan-1", Some("core"), "wan", "wan-1"),
+                ("ppp-1", Some("wan-1"), "group", "source:ppp"),
+            ],
+            &[("s1", "ppp-1", "100.64.0.1", None)],
+        );
+        let t = compute(&v, Some(&sample(100, &[])), 101);
+        assert_eq!(
+            flows(&t),
+            [
+                ("core", "wan-1", Some("wan-1"), 10_000_000),
+                ("wan-1", "source:ppp", Some("wan-1"), 10_000_000),
+            ]
+        );
+    }
+
+    #[test]
+    fn the_routing_wan_adds_the_first_edge_when_the_tree_has_no_wan() {
+        let v = tree(
+            &[
+                ("wan-1", None, "wan", "wan-1"),
+                ("distro", None, "intermediate", "distro"),
+                ("ppp-1", Some("distro"), "group", "source:ppp"),
+            ],
+            &[("s1", "ppp-1", "100.64.0.1", Some("wan-1"))],
+        );
+        let t = compute(&v, Some(&sample(100, &[])), 101);
+        assert_eq!(
+            flows(&t),
+            [
+                ("distro", "source:ppp", Some("wan-1"), 10_000_000),
+                ("wan-1", "distro", Some("wan-1"), 10_000_000),
+            ]
+        );
+    }
+
+    #[test]
+    fn the_tree_wan_wins_when_routing_disagrees() {
+        let v = tree(
+            &[
+                ("wan-1", None, "wan", "wan-1"),
+                ("wan-2", None, "wan", "wan-2"),
+                ("ppp-1", Some("wan-1"), "group", "source:ppp"),
+            ],
+            &[("s1", "ppp-1", "100.64.0.1", Some("wan-2"))],
+        );
+        let t = compute(&v, Some(&sample(100, &[])), 101);
+        assert_eq!(
+            flows(&t),
+            [("wan-1", "source:ppp", Some("wan-1"), 10_000_000)]
+        );
+    }
+
+    #[test]
+    fn a_host_without_wan_has_a_none_stream() {
+        let v = tree(
+            &[
+                ("distro", None, "intermediate", "distro"),
+                ("ppp-1", Some("distro"), "group", "source:ppp"),
+            ],
+            &[("s1", "ppp-1", "100.64.0.1", None)],
+        );
+        let t = compute(&v, Some(&sample(100, &[])), 101);
+        assert_eq!(flows(&t), [("distro", "source:ppp", None, 10_000_000)]);
+        assert_eq!(t.unmapped_hosts, 2, "hosts 2 and 3 have no subscriber");
+    }
+
+    #[test]
+    fn in_equals_out_for_every_card_and_wan() {
+        let v = tree(
+            &[
+                ("core", None, "intermediate", "core"),
+                ("wan-1", Some("core"), "wan", "wan-1"),
+                ("wan-2", Some("core"), "wan", "wan-2"),
+                ("distro-1", Some("wan-1"), "intermediate", "router:distro"),
+                ("distro-2", Some("wan-2"), "intermediate", "router:distro"),
+                ("ppp-1", Some("distro-1"), "group", "source:ppp"),
+                ("ppp-2", Some("distro-2"), "group", "source:ppp"),
+                ("dhcp-1", Some("distro-1"), "group", "source:dhcp"),
+            ],
+            &[
+                ("s1", "ppp-1", "100.64.0.1", None),
+                ("s2", "dhcp-1", "100.64.0.2", None),
+                ("s3", "ppp-2", "100.64.0.3", None),
+            ],
+        );
+        let t = compute(&v, Some(&sample(100, &[])), 101);
+        let mut sums: BTreeMap<(&str, Option<&str>), (u64, u64)> = BTreeMap::new();
+        for (from, to, wan, down) in flows(&t) {
+            sums.entry((from, wan)).or_default().1 += down;
+            sums.entry((to, wan)).or_default().0 += down;
+        }
+        for ((card, wan), (inflow, outflow)) in sums {
+            if inflow > 0 && outflow > 0 {
+                assert_eq!(inflow, outflow, "{card} {wan:?}");
+            }
+        }
     }
 }

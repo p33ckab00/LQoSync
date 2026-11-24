@@ -1021,7 +1021,10 @@ fn sources_name_their_router_access_and_endpoint() {
 #[test]
 fn view_gives_each_active_subscriber_its_routing_wan() {
     let d = doc();
-    let p = sized_preview(&[("group1", 2)], &[("sub-1", "group1"), ("sub-2", "group1")]);
+    let p = sized_preview(
+        &[("group1", 2)],
+        &[("sub-1", "group1"), ("sub-2", "group1")],
+    );
     let routing = crate::topology_manager::routing_balance::RoutingState {
         assigned: [("sub-1".to_string(), "wan2".to_string())].into(),
     };
