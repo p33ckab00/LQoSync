@@ -215,7 +215,19 @@ pub(crate) fn TopologyPage(
           <nav class="router-tabs" aria-label="Topology views">
             {TOPOLOGY_TABS.iter().map(|(key,label)|{
               let key=*key;
-              view!{<Link href=format!("/topology?tab={key}") current=Signal::derive(move||key==tab)>{*label}</Link>}
+              let canvas = !matches!(tab, "assignments" | "policies" | "changes");
+              let path = match key {
+                  "assignments" => "M8 6h12M8 12h12M8 18h12M3 6h1M3 12h1M3 18h1",
+                  "policies" => "M4 7h10M18 7h2M4 17h4M12 17h8M14 5v4M8 15v4",
+                  "changes" => "M4 5h16v15H4zM8 2v6M16 2v6M8 12h8M8 16h5",
+                  _ => "M3 3h6v6H3zM15 15h6v6h-6zM6 9v9h9",
+              };
+              view!{<Link href=format!("/topology?tab={key}") current=Signal::derive(move||key==tab)>
+                <span class=if canvas {"canvas-tab-icon"} else {""} title=*label>
+                  {canvas.then(||crate::topology_canvas::icon(path))}
+                  <span class=if canvas {"sr-only"} else {""}>{*label}</span>
+                </span>
+              </Link>}
             }).collect_view()}
           </nav>
         }
@@ -259,6 +271,7 @@ pub(crate) fn TopologyPage(
         };
         return view! {
           <div class="topology-canvas-page">
+            <div class="topology-stage">
             <div class="topology-head">
               <h1 tabindex="-1">"Topology Manager"</h1>
               {tabs()}
@@ -266,16 +279,15 @@ pub(crate) fn TopologyPage(
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg>
               </button>
             </div>
-            <Show when=move||!error.get().is_empty()><div class="notice" role="status">{move||error.get()}</div></Show>
-            <div class="topology-stage">
-              <details class="canvas-evidence">
+            <Show when=move||data.with(Option::is_some)&&!error.get().is_empty()><div class="notice" role="status">{move||error.get()}</div></Show>
+              <Show when=move||data.with(Option::is_some)><details class="canvas-evidence">
                 <summary>{move||summary_line().map(|(fresh,revision,writer,counts)|view!{
                   <span class="canvas-evidence-dot" data-fresh=fresh.to_string() aria-hidden="true"></span>
                   <strong>{revision}</strong><span>{writer}</span><span>{counts}</span>
                 })}</summary>
                 <div class="canvas-evidence-body"><Evidence data/>{notices()}</div>
-              </details>
-              <Show when=move||data.with(Option::is_some) fallback=||view!{<div class="panel loading" role="status">"Loading the topology view…"</div>}>
+              </details></Show>
+              <Show when=move||data.with(Option::is_some) fallback=move||view!{<div class="studio-initial" role="status">{move||if error.get().is_empty(){"Loading the topology view…".to_string()}else{error.get()}}</div>}>
                 <crate::topology_canvas::Canvas session data reload=load/>
               </Show>
             </div>

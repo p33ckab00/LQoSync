@@ -14,21 +14,67 @@ pub(crate) fn deadline() -> (web_sys::AbortSignal, gloo_timers::callback::Timeou
 fn Brand(#[prop(default = false)] compact: bool) -> impl IntoView {
     view! {<div class:compact=compact class="brand"><svg viewBox="0 0 80 80" aria-hidden="true"><path class="brand-blue" d="M6 23 40 7 74 23 40 39Z"/><path d="m6 39 34 16 34-16M6 55l34 16 34-16"/></svg><span>"LQoSync"<sup>"v3"</sup></span></div>}
 }
-#[component]
-fn Theme() -> impl IntoView {
-    let initial = web_sys::window()
-        .and_then(|w| w.document())
-        .and_then(|d| d.document_element())
-        .and_then(|e| e.get_attribute("data-theme"))
-        .unwrap_or("system".into());
-    view! {<label class="theme"><span>"Theme"</span><select aria-label="Color theme" prop:value=initial on:change=move|ev|{
-    let value=event_target_value(&ev);if !matches!(value.as_str(),"light"|"dark"|"system"){return;}
-    if let Some(document)=web_sys::window().and_then(|w|w.document()){
-    if let Some(root)=document.document_element(){let _=root.set_attribute("data-theme",&value);}
-    let age=if value=="system"{0}else{31536000};let cookie=format!("lqosync_theme={value}; Path=/; SameSite=Strict; Max-Age={age}{}",if web_sys::window().unwrap().location().protocol().unwrap_or_default()=="https:"{"; Secure"}else{""});
-    if let Some(html)=document.dyn_ref::<web_sys::HtmlDocument>(){let _=html.set_cookie(&cookie);}
+#[derive(Clone, Copy)]
+struct ThemePreference(RwSignal<String>);
+
+fn set_theme(theme: RwSignal<String>, value: &str) {
+    if !matches!(value, "light" | "dark" | "system") {
+        return;
     }
-    }><option value="light">"Light"</option><option value="dark">"Dark"</option><option value="system">"System"</option></select></label>}
+    theme.set(value.to_string());
+    if let Some(document) = web_sys::window().and_then(|w| w.document()) {
+        if let Some(root) = document.document_element() {
+            let _ = root.set_attribute("data-theme", value);
+        }
+        let age = if value == "system" { 0 } else { 31536000 };
+        let cookie = format!(
+            "lqosync_theme={value}; Path=/; SameSite=Strict; Max-Age={age}{}",
+            if web_sys::window()
+                .unwrap()
+                .location()
+                .protocol()
+                .unwrap_or_default()
+                == "https:"
+            {
+                "; Secure"
+            } else {
+                ""
+            }
+        );
+        if let Some(html) = document.dyn_ref::<web_sys::HtmlDocument>() {
+            let _ = html.set_cookie(&cookie);
+        }
+    }
+}
+#[component]
+pub(crate) fn Theme(#[prop(default = false)] icons: bool) -> impl IntoView {
+    let theme = expect_context::<ThemePreference>().0;
+    if icons {
+        let expanded = RwSignal::new(false);
+        let launcher = NodeRef::<leptos::html::Button>::new();
+        return view! {
+            <div class="canvas-appearance" on:keydown=move |ev: web_sys::KeyboardEvent| {
+                if ev.key()=="Escape" {expanded.set(false);if let Some(b)=launcher.get_untracked(){let _=b.focus();}}
+            }>
+                <button type="button" node_ref=launcher class="canvas-tool" aria-label="Canvas appearance" title="Canvas appearance"
+                    aria-expanded=move||expanded.get().to_string() on:click=move|_|expanded.update(|v|*v = !*v)>
+                    {crate::topology_canvas::icon("M20 14A9 9 0 0 1 10 3a9 9 0 1 0 10 11z")}
+                </button>
+                <Show when=move||expanded.get()>
+                    <div class="canvas-theme-options" role="group" aria-label="Color theme">
+                        {[ ("light","Light theme","M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6 7 7M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0"),
+                           ("dark","Dark theme","M20 14A9 9 0 0 1 10 3a9 9 0 1 0 10 11z"),
+                           ("system","System theme","M3 4h18v13H3zM8 21h8M12 17v4") ].into_iter().map(move|(mode,label,path)|view!{
+                            <button type="button" class="canvas-tool" aria-label=label title=label aria-pressed=move||(theme.get()==mode).to_string()
+                                on:click=move|_|{set_theme(theme, mode);expanded.set(false);if let Some(b)=launcher.get_untracked(){let _=b.focus();}}>{crate::topology_canvas::icon(path)}</button>
+                        }).collect_view()}
+                    </div>
+                </Show>
+            </div>
+        }.into_any();
+    }
+    view! {<label class="theme"><span>"Theme"</span><select aria-label="Color theme" prop:value=move||theme.get()
+        on:change=move|ev|set_theme(theme, &event_target_value(&ev))><option value="light">"Light"</option><option value="dark">"Dark"</option><option value="system">"System"</option></select></label>}.into_any()
 }
 #[component]
 fn NetworkArt() -> impl IntoView {
@@ -40,6 +86,7 @@ fn NetworkArt() -> impl IntoView {
 }
 #[component]
 fn SignIn(session: RwSignal<Option<Principal>>) -> impl IntoView {
+    let memory = expect_context::<crate::topology_studio::StudioMemory>().0;
     let username = RwSignal::new(String::new());
     let password = RwSignal::new(String::new());
     let show = RwSignal::new(false);
@@ -47,7 +94,7 @@ fn SignIn(session: RwSignal<Option<Principal>>) -> impl IntoView {
     let error = RwSignal::new(String::new());
     view! {<div class="signin-page"><header class="signin-top"><Theme/></header><main class="signin-layout" id="main"><section class="identity"><Brand/><p>"Network configuration and orchestration"</p><NetworkArt/></section><section class="signin-panel glass"><Brand compact=true/><h1>"Sign in"</h1><p class="intro">"Use your administrator account."</p><form on:submit=move|ev|{ev.prevent_default();if pending.get_untracked(){return;}pending.set(true);error.set(String::new());let body=serde_json::json!({"username":username.get_untracked(),"password":password.get_untracked()});leptos::task::spawn_local(async move{
     let (signal,_timer)=deadline();let response=Request::post("/api/v1/session").abort_signal(Some(&signal)).json(&body).expect("serializable login").send().await;
-    match response {Ok(r)if r.ok()=>match r.json::<Principal>().await{Ok(p)=>{password.set(String::new());session.set(Some(p));},Err(_)=>error.set("The sign-in response is invalid. Try again.".into())},Ok(r)if r.status()==401=>error.set("Sign-in details are incorrect.".into()),_=>error.set("Sign-in service unavailable. Try again shortly.".into())};pending.set(false);
+    match response {Ok(r)if r.ok()=>match r.json::<Principal>().await{Ok(p)=>{password.set(String::new());memory.update(|m|m.bind_actor(&p.username));session.set(Some(p));},Err(_)=>error.set("The sign-in response is invalid. Try again.".into())},Ok(r)if r.status()==401=>error.set("Sign-in details are incorrect.".into()),_=>error.set("Sign-in service unavailable. Try again shortly.".into())};pending.set(false);
     });}><label for="username">"Username"</label><input id="username" name="username" type="text" autocomplete="username" spellcheck="false" autocapitalize="none" placeholder="Enter your username" maxlength="64" required prop:value=move||username.get() on:input=move|ev|username.set(event_target_value(&ev))/><label for="password">"Password"</label><div class="password-field"><input id="password" name="password" type=move||if show.get(){"text"}else{"password"} autocomplete="current-password" placeholder="Enter your password" maxlength="256" required prop:value=move||password.get() on:input=move|ev|password.set(event_target_value(&ev))/><button type="button" aria-label=move||if show.get(){"Hide password"}else{"Show password"} on:click=move|_|show.update(|v|*v = !*v)>{move||if show.get(){"Hide"}else{"Show"}}</button></div><p class="form-error" role="alert">{move||error.get()}</p><button type="submit" class="primary signin-button" disabled=move||pending.get()>{move||if pending.get(){"Signing in…"}else{"Sign in"}}</button></form><p class="access-note">"Contact your system administrator for account access."</p></section></main><footer>"LQoSync · Web control panel"</footer></div>}
 }
 #[component]
@@ -111,6 +158,7 @@ fn Dashboard(session: RwSignal<Option<Principal>>) -> impl IntoView {
             gloo_timers::future::TimeoutFuture::new(5000).await;
         }
     });
+    let studio_memory = expect_context::<crate::topology_studio::StudioMemory>().0;
     let signing_out = RwSignal::new(false);
     view! {
       <div class="app-shell">
@@ -129,7 +177,7 @@ fn Dashboard(session: RwSignal<Option<Principal>>) -> impl IntoView {
             <div class="top-actions">
               <span class="header-time" title="Time in your browser's local timezone">{move||{data.with(|_|format!("{} Local",local_time(js_now())))}}</span>
               <span class="header-update">{move||data.with(|d|d.as_ref().and_then(|v|v.observed_at).map(|t|format!("Updated {}s ago",js_now().saturating_sub(t))).unwrap_or("Waiting for update".into()))}</span>
-              <Theme/>
+              <Show when=move||!matches!(page.get(),crate::route_model::Page::Topology{tab:"builder",..})><Theme/></Show>
               <span class="username">{move||session.get().map(|p|p.username).unwrap_or_default()}</span>
               <button class="quiet" disabled=move||signing_out.get() on:click=move|_|{
                 if signing_out.get_untracked(){return;}
@@ -138,7 +186,7 @@ fn Dashboard(session: RwSignal<Option<Principal>>) -> impl IntoView {
                 leptos::task::spawn_local(async move{
                   let (signal,_timer)=deadline();
                   match Request::delete("/api/v1/session").abort_signal(Some(&signal)).header("x-csrf-token",&csrf).send().await{
-                    Ok(r)if r.ok()||r.status()==401=>session.set(None),
+                    Ok(r)if r.ok()||r.status()==401=>{studio_memory.update(|m|m.clear());session.set(None);},
                     _=>error.set("Sign out could not complete. Try again.".into())
                   };
                   signing_out.set(false);
@@ -182,6 +230,14 @@ fn js_now() -> u64 {
 }
 #[component]
 pub fn App() -> impl IntoView {
+    let theme = web_sys::window()
+        .and_then(|w| w.document())
+        .and_then(|d| d.document_element())
+        .and_then(|e| e.get_attribute("data-theme"))
+        .unwrap_or("system".into());
+    provide_context(ThemePreference(RwSignal::new(theme)));
+    let studio_memory = RwSignal::new(crate::topology_studio_model::DraftVault::default());
+    provide_context(crate::topology_studio::StudioMemory(studio_memory));
     let session = RwSignal::new(None::<Principal>);
     let loading = RwSignal::new(true);
     leptos::task::spawn_local(async move {
@@ -193,6 +249,7 @@ pub fn App() -> impl IntoView {
             && r.ok()
             && let Ok(p) = r.json::<Principal>().await
         {
+            studio_memory.update(|m| m.bind_actor(&p.username));
             session.set(Some(p));
         }
         loading.set(false);

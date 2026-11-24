@@ -20,6 +20,7 @@ enum Panel {
     Allocation,
     Preview,
     Excluded,
+    Layout,
 }
 
 /// The fields of the node modal. An invalid form stays as a draft for its node.
@@ -136,7 +137,7 @@ async fn put_layout(
     }
 }
 
-fn icon(path: &'static str) -> impl IntoView {
+pub(crate) fn icon(path: &'static str) -> impl IntoView {
     view! {<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d=path/></svg>}
 }
 
@@ -146,6 +147,15 @@ const ICON_ALLOCATION: &str = "M12 4v6M6 20v-4h12v4M12 10l-6 6M12 10l6 6";
 const ICON_EXCLUDED: &str = "M4 6h16M4 12h10M4 18h7M15 15l5 5M20 15l-5 5";
 const ICON_PREVIEW: &str =
     "M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z";
+
+const ICON_HELP: &str = "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 11v6M12 7v1";
+const ICON_LAYOUT: &str = "M4 3h6v6H4zM14 15h6v6h-6zM7 9v9h7M14 6h6M17 3v6";
+const ICON_LIST: &str = "M8 6h12M8 12h12M8 18h12M3 6h1M3 12h1M3 18h1";
+const ICON_MINUS: &str = "M4 12h16";
+const ICON_PLUS: &str = "M4 12h16M12 4v16";
+const ICON_FIT: &str = "M3 9V3h6M15 3h6v6M21 15v6h-6M9 21H3v-6";
+const ICON_ACTUAL: &str = "M5 7v10M3 9l2-2 2 2M12 7h7v10h-7z";
+const ICON_REMOVE: &str = "M8 7l3-3a5 5 0 0 1 7 7l-1 1M7 8l-3 3a5 5 0 0 0 7 7l1-1M3 3l18 18";
 
 #[component]
 pub(crate) fn Canvas(
@@ -164,8 +174,25 @@ pub(crate) fn Canvas(
     let queue = StoredValue::new(VecDeque::<BuilderEdit>::new());
     let draining = RwSignal::new(false);
     let policy_revision = RwSignal::new(None::<u64>);
+    let projection = RwSignal::new(None::<web_contract::source_studio::CandidateSummary>);
+    let studio_open = RwSignal::new(false);
+    let studio_router = RwSignal::new(None::<String>);
+    let help_dialog = NodeRef::<leptos::html::Dialog>::new();
+    let help_open = RwSignal::new(false);
     let dialog = NodeRef::<leptos::html::Dialog>::new();
     let viewport = NodeRef::<leptos::html::Div>::new();
+    let frame = NodeRef::<leptos::html::Div>::new();
+    let frame_bounds = RwSignal::new([0.0_f64; 4]);
+    let measure = move || {
+        if let Some(f) = frame.get_untracked() {
+            let r = f.get_bounding_client_rect();
+            frame_bounds.set([r.x(), r.y(), r.width(), r.height()]);
+        }
+    };
+    request_animation_frame(measure);
+    let resize = window_event_listener(leptos::ev::resize, move |_| measure());
+    on_cleanup(move || resize.remove());
+
     let list_view = RwSignal::new(false);
     // The selected line: parent card ID and child card ID.
     let selected_link = RwSignal::new(None::<(String, String)>);
@@ -271,7 +298,7 @@ pub(crate) fn Canvas(
     });
     let point_of =
         move |id: &str| points.with(|p| p.iter().find(|(n, _)| n == id).map(|(_, x)| *x));
-    let locked = move || structural_blocked(data).is_some();
+    let locked = move || structural_blocked(data).is_some() || projection.with(Option::is_some);
     let topology_writer = move || {
         data.with_untracked(|d| {
             d.as_ref()
@@ -446,6 +473,7 @@ pub(crate) fn Canvas(
                 });
             }
         }
+        measure();
         panel.set(Some(p));
         if let Some(d) = dialog.get_untracked() {
             let _ = d.show_modal();
@@ -788,7 +816,25 @@ pub(crate) fn Canvas(
             Some(view! {<path d=d class="pending"/>})
         })
     };
-    let size = move || points.with(|p| surface(p));
+    let world_points = Memo::new(move |_| {
+        let mut at = points.get();
+        if let Some(p) = projection.get() {
+            let (_, extra) = crate::topology_studio_preview::candidate_geometry(
+                &p,
+                data.get().as_ref(),
+                &at,
+                direction.get(),
+            );
+            at.extend(extra);
+        }
+        at
+    });
+    let size = move || world_points.with(|p| surface(p));
+    Effect::new(move |_| {
+        if projection.with(Option::is_some) {
+            list_view.set(false);
+        }
+    });
     let selected_node = move || {
         let id = selected.get()?;
         nodes.with(|n| n.iter().find(|x| card_of(x) == id).cloned())
@@ -821,7 +867,7 @@ pub(crate) fn Canvas(
     let tool = move |p: Panel, label: &'static str, path: &'static str| {
         view! {
           <button type="button" class="canvas-tool" aria-label=label title=label
-            aria-haspopup="dialog" on:click=move|_|open(p)>{icon(path)}</button>
+            aria-haspopup="dialog" disabled=move||projection.with(Option::is_some) on:click=move|_|open(p)>{icon(path)}</button>
         }
     };
     let wan_field = move |f: fn(&mut Draft) -> &mut String, v: String| {
@@ -842,8 +888,11 @@ pub(crate) fn Canvas(
           }))}</p>
           <p class="canvas-status" role="status" aria-live="polite">{move||status.get()}</p>
         </div>
-        {move||structural_blocked(data).filter(|_|data.with(Option::is_some)).map(|why|view!{<p class="notice" role="note">{why}</p>})}
-        <div class="canvas-frame">
+        <div class="canvas-frame" node_ref=frame style=move||{
+          let [x,y,w,h]=frame_bounds.get();
+          format!("--studio-left:{x}px;--studio-top:{y}px;--studio-width:{w}px;--studio-height:{h}px")
+        }>
+          {move||structural_blocked(data).filter(|_|data.with(Option::is_some)).map(|why|view!{<p class="notice canvas-readonly" role="note">{why}</p>})}
           <Show when=move||list_view.get()>
             <ul class="canvas-list" aria-label="Topology cards">
               {move||card_list.get().into_iter().map(|c|{
@@ -884,11 +933,15 @@ pub(crate) fn Canvas(
             <div class="canvas-surface" style:width=move||format!("{}px",size().0*zoom.get()) style:height=move||format!("{}px",size().1*zoom.get())>
               <div class="canvas-layer" data-direction=move||direction_name(direction.get()) style:width=move||format!("{}px",size().0) style:height=move||format!("{}px",size().1)
                 style:transform=move||format!("scale({})",zoom.get())>
+                <div class="canvas-saved-layer" style="display:contents" inert=move||projection.with(Option::is_some) data-preview=move||projection.with(Option::is_some).to_string()>
                 <svg class="canvas-wires" aria-hidden="true" width=move||size().0 height=move||size().1>{wires}{pending}</svg>
                 <For each=move||card_list.get() key=|c|{let n=&c.node; format!("{}|{}|{}|{:?}|{:?}|{:?}|{:?}|{:?}|{:?}",c.id,n.name,n.kind,n.geo,n.capacity,n.exported_mbps,c.members,n.router_id,(n.auto_members,&n.wan_health,n.routed,n.tree_excluded))} children=card/>
                 <For each=move||group_cards.get() key=|c|c.id.clone() children=leaves/>
                 <For each=move||parents.get() key=|c|c.id.clone() children=handle/>
                 <For each=move||candidate_cards(&candidates.get()) key=|c|c.0.clone() children=candidate/>
+                </div>
+                <crate::topology_studio_preview::CandidateOverlay projection saved=data points direction/>
+
               </div>
             </div>
             <Show when=move||data.with(|d|d.as_ref().is_some_and(|s|s.nodes.is_empty()))>
@@ -903,76 +956,45 @@ pub(crate) fn Canvas(
           <div class="canvas-dock" role="toolbar" aria-label="Topology tools" aria-orientation="vertical">
             {tool(Panel::Inventory,"Router inventory",ICON_INVENTORY)}
             {tool(Panel::Settings,"Topology settings",ICON_SETTINGS)}
+            <button type="button" class="canvas-tool" aria-label="Router source configuration" title="Router source configuration" on:click=move|_|{measure();studio_open.set(true);}>{icon("M4 4h16v16H4zM8 8h8M8 12h5M8 16h8")}</button>
             {tool(Panel::Allocation,"Subscriber allocation",ICON_ALLOCATION)}
             {tool(Panel::Preview,"Preview and evidence",ICON_PREVIEW)}
             {tool(Panel::Excluded,"Excluded sources",ICON_EXCLUDED)}
+            {tool(Panel::Layout,"Canvas layout",ICON_LAYOUT)}
+            <button type="button" class="canvas-tool" aria-label="Configuration information" title="Configuration information" on:click=move|_|{measure();help_open.set(true);if let Some(d)=help_dialog.get_untracked(){let _=d.show_modal();}}>{icon(ICON_HELP)}</button>
+            <button type="button" class="canvas-tool" aria-label="List view" title="List view" disabled=move||projection.with(Option::is_some) aria-pressed=move||list_view.get().to_string() on:click=move|_|list_view.set(!list_view.get_untracked())>{icon(ICON_LIST)}</button>
+            <Show when=move||selected_link.get().is_some()>
+              <span class="canvas-zoom-sep" aria-hidden="true"></span>
+              <button type="button" class="canvas-tool danger" aria-label="Remove link" title="Remove link" disabled=locked
+                on:click=move|_|if let Some((from,to))=selected_link.get_untracked(){remove_link(from,to);}>{icon(ICON_REMOVE)}</button>
+            </Show>
+            <Show when=move||selected.get().is_some()>
+              <span class="canvas-zoom-sep" aria-hidden="true"></span>
+              <button type="button" class="canvas-tool" aria-label="Card settings" title="Card settings" disabled=move||projection.with(Option::is_some) on:click=move|_|open(Panel::Node)>{icon(ICON_SETTINGS)}</button>
+            </Show>
+
           </div>
           <div class="canvas-zoom" role="group" aria-label="Zoom">
             <button type="button" class="quiet" aria-label="Zoom out" on:click=move|_|zoom.update(|z|*z=clamp_zoom(((*z-0.1)*10.0).round()/10.0))
-              disabled={move||zoom.get()<=0.26}>"−"</button>
+              title="Zoom out" disabled={move||zoom.get()<=0.26}>{icon(ICON_MINUS)}</button>
             <button type="button" class="quiet canvas-zoom-level" aria-label="Zoom to 100%" title="Zoom to 100%"
-              on:click=move|_|zoom.set(1.0)>{move||format!("{:.0}%",zoom.get()*100.0)}</button>
+              on:click=move|_|zoom.set(1.0)>{icon(ICON_ACTUAL)}</button>
             <button type="button" class="quiet" aria-label="Zoom in" on:click=move|_|zoom.update(|z|*z=clamp_zoom(((*z+0.1)*10.0).round()/10.0))
-              disabled={move||zoom.get()>=1.99}>"+"</button>
+              title="Zoom in" disabled={move||zoom.get()>=1.99}>{icon(ICON_PLUS)}</button>
             <span class="canvas-zoom-sep" aria-hidden="true"></span>
-            <button type="button" class="quiet" on:click=move|_|{
+            <button type="button" class="quiet" aria-label="Fit" title="Fit topology" on:click=move|_|{
               let Some(v)=viewport.get_untracked() else {return};
-              let b=points.with_untracked(|p|p.iter().fold([f64::MAX,f64::MAX,f64::MIN,f64::MIN],|b,(_,q)|
+              let b=world_points.with_untracked(|p|p.iter().fold([f64::MAX,f64::MAX,f64::MIN,f64::MIN],|b,(_,q)|
                 [b[0].min(q[0]),b[1].min(q[1]),b[2].max(q[0]+CARD_W),b[3].max(q[1]+CARD_H)]));
               let (z,_,_)=fit(b,[v.client_width() as f64,v.client_height() as f64]);
               zoom.set(z);
               v.set_scroll_left((b[0]*z) as i32);
               v.set_scroll_top((b[1]*z) as i32);
-            }>"Fit"</button>
-            <button type="button" class="quiet" disabled=locked on:click=move|_|{
-              // Clear the saved positions: every card returns to the automatic layout.
-              local.set(HashMap::new());
-              let expected_revision=layout_revision.get_untracked().unwrap_or_else(||data.with_untracked(|d|
-                d.as_ref().and_then(|s|s.layout_revision.as_deref()).and_then(|r|r.parse().ok()).unwrap_or(0)));
-              leptos::task::spawn_local(async move{
-                match put_layout(session,&LayoutRequest{expected_revision,positions:Default::default(),direction:direction.get_untracked()}).await{
-                  Ok(r)=>{layout_revision.set(Some(r));status.set("Layout reset. Shaping does not change.".into());}
-                  Err(e)=>{layout_revision.set(None);status.set(e.into());}
-                }
-                reload.run(());
-              });
-            }>"Reset layout"</button>
-            <label class="canvas-direction"><span class="sr-only">"Layout direction"</span>
-              <select aria-label="Layout direction" disabled=locked prop:value=move||direction_name(direction.get())
-                on:change=move|ev|{
-                  let Some(next)=direction_of(&event_target_value(&ev)) else {return};
-                  direction_set.set_value(true);
-                  direction.set(next);
-                  // The new direction restores its saved positions; the old ones stay saved.
-                  local.set(HashMap::new());
-                  let expected_revision=layout_revision.get_untracked().unwrap_or_else(||data.with_untracked(|d|
-                    d.as_ref().and_then(|s|s.layout_revision.as_deref()).and_then(|r|r.parse().ok()).unwrap_or(0)));
-                  leptos::task::spawn_local(async move{
-                    match put_layout(session,&LayoutRequest{expected_revision,positions:Default::default(),direction:next}).await{
-                      Ok(r)=>{layout_revision.set(Some(r));status.set("Layout direction saved. Shaping does not change.".into());}
-                      Err(e)=>{layout_revision.set(None);status.set(e.into());}
-                    }
-                    reload.run(());
-                  });
-                }>
-                <option value="top_down">"Top-down"</option>
-                <option value="bottom_up">"Bottom-up"</option>
-                <option value="left_right">"Left to right"</option>
-                <option value="right_left">"Right to left"</option>
-              </select></label>
-            <button type="button" class="quiet" aria-pressed=move||list_view.get().to_string() on:click=move|_|list_view.set(!list_view.get_untracked())>"List view"</button>
-            <Show when=move||selected_link.get().is_some()>
-              <span class="canvas-zoom-sep" aria-hidden="true"></span>
-              <button type="button" class="quiet danger" disabled=locked
-                on:click=move|_|if let Some((from,to))=selected_link.get_untracked(){remove_link(from,to);}>"Remove link"</button>
-            </Show>
-            <Show when=move||selected.get().is_some()>
-              <span class="canvas-zoom-sep" aria-hidden="true"></span>
-              <button type="button" class="quiet" on:click=move|_|open(Panel::Node)>"Card settings"</button>
-            </Show>
+            }>{icon(ICON_FIT)}</button>
           </div>
-        </div>
-        <dialog node_ref=dialog class="topology-dialog canvas-dialog" data-panel=move||(panel.get()==Some(Panel::Inventory)).then_some("inventory") aria-labelledby="canvas-dialog-title"
+        <crate::topology_studio::Studio open=studio_open router_id=studio_router session data projection load_saved=Callback::new(move|()|{projection.set(None);reload.run(());})/>
+        <crate::app::Theme icons=true/>
+        <dialog node_ref=dialog class="topology-dialog canvas-dialog" data-panel=move||match panel.get(){Some(Panel::Inventory)=>"inventory",_=>"settings"} aria-labelledby="canvas-dialog-title"
           on:close=move|_|{
             // A late close event of an earlier modal must not clear a modal that is open again.
             if dialog.get_untracked().is_some_and(|d|d.open()) { return; }
@@ -987,8 +1009,15 @@ pub(crate) fn Canvas(
               Some(Panel::Allocation)=>"Subscriber allocation".into(),
               Some(Panel::Preview)=>"Preview and evidence".into(),
               Some(Panel::Excluded)=>"Excluded sources".into(),
+              Some(Panel::Layout)=>"Canvas layout".into(),
               None=>String::new(),
             }}</h2></div>
+            <Show when=move||selected_node().is_some_and(|n|n.router_id.is_some())>
+              <button type="button" class="canvas-tool" aria-label="Configure source router" title="Configure source router" on:click=move|_|{
+                if let Some(id)=selected_node().and_then(|n|n.router_id){close();measure();studio_router.set(Some(id));studio_open.set(true);}
+              }>{icon(ICON_SETTINGS)}</button>
+            </Show>
+            <button type="button" class="canvas-tool" aria-label="Configuration information" title="Configuration information" on:click=move|_|{measure();help_open.set(true);if let Some(d)=help_dialog.get_untracked(){let _=d.show_modal();}}>{icon(ICON_HELP)}</button>
             <button type="button" class="router-icon quiet" aria-label="Close" title="Close" on:click=move|_|close()>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
             </button>
@@ -1146,15 +1175,62 @@ pub(crate) fn Canvas(
                   <p class="field-help">"No source is excluded."</p>
                 </Show>
               }.into_any(),
+              Some(Panel::Layout)=>view!{
+                <p class="field-help">"Layout changes do not change shaping policy."</p>
+            <button type="button" class="quiet" disabled=locked on:click=move|_|{
+              // Clear the saved positions: every card returns to the automatic layout.
+              local.set(HashMap::new());
+              let expected_revision=layout_revision.get_untracked().unwrap_or_else(||data.with_untracked(|d|
+                d.as_ref().and_then(|s|s.layout_revision.as_deref()).and_then(|r|r.parse().ok()).unwrap_or(0)));
+              leptos::task::spawn_local(async move{
+                match put_layout(session,&LayoutRequest{expected_revision,positions:Default::default(),direction:direction.get_untracked()}).await{
+                  Ok(r)=>{layout_revision.set(Some(r));status.set("Layout reset. Shaping does not change.".into());}
+                  Err(e)=>{layout_revision.set(None);status.set(e.into());}
+                }
+                reload.run(());
+              });
+            }>"Reset layout"</button>
+            <label class="canvas-direction"><span class="sr-only">"Layout direction"</span>
+              <select aria-label="Layout direction" disabled=locked prop:value=move||direction_name(direction.get())
+                on:change=move|ev|{
+                  let Some(next)=direction_of(&event_target_value(&ev)) else {return};
+                  direction_set.set_value(true);
+                  direction.set(next);
+                  // The new direction restores its saved positions; the old ones stay saved.
+                  local.set(HashMap::new());
+                  let expected_revision=layout_revision.get_untracked().unwrap_or_else(||data.with_untracked(|d|
+                    d.as_ref().and_then(|s|s.layout_revision.as_deref()).and_then(|r|r.parse().ok()).unwrap_or(0)));
+                  leptos::task::spawn_local(async move{
+                    match put_layout(session,&LayoutRequest{expected_revision,positions:Default::default(),direction:next}).await{
+                      Ok(r)=>{layout_revision.set(Some(r));status.set("Layout direction saved. Shaping does not change.".into());}
+                      Err(e)=>{layout_revision.set(None);status.set(e.into());}
+                    }
+                    reload.run(());
+                  });
+                }>
+                <option value="top_down">"Top-down"</option>
+                <option value="bottom_up">"Bottom-up"</option>
+                <option value="left_right">"Left to right"</option>
+                <option value="right_left">"Right to left"</option>
+              </select></label>
+
+              }.into_any(),
               None=>().into_any(),
             }}
           </div>
           <footer class="canvas-dialog-footer">
             <p role="status">{move||status.get()}</p>
-            <button type="button" class="quiet" on:click=move|_|close()>"Close"</button>
+            <button type="button" class="canvas-tool" aria-label="Close" title="Close" on:click=move|_|close()>{icon("M6 6l12 12M18 6 6 18")}</button>
           </footer>
         </dialog>
+        <dialog node_ref=help_dialog class="topology-dialog canvas-dialog" data-panel="help" aria-labelledby="studio-help-title" on:close=move|_|help_open.set(false)>
+            <header class="add-router-heading"><h2 id="studio-help-title">"Configuration workflow"</h2>
+                <button type="button" class="canvas-tool" aria-label="Close" title="Close" on:click=move|_|{if let Some(d)=help_dialog.get_untracked(){d.close();}}>{icon("M6 6l12 12M18 6 6 18")}</button>
+            </header>
+            <div class="canvas-dialog-body"><Show when=move||help_open.get()><crate::topology_studio_help::StudioHelp selected=if panel.get()==Some(Panel::Inventory){None}else{selected_node()}/></Show></div>
+        </dialog>
         <crate::topology_forms::ChangeDialog session data action=adopt reload/>
+        </div>
       </section>
     }
 }

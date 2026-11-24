@@ -135,15 +135,15 @@ Create `crates/web-ui/src/topology_studio_help.rs` and `tools/frontend/studio-sh
 **Interface:** Keep `Canvas` and current `TopologySummary`, `Flow`, and layout requests.
 Use the existing theme state. Do not copy the HTML prototype into the application.
 
-- [ ] Add `tools_stay_inside_canvas`, `modal_stays_inside_canvas`, and `card_data_survives_shell_change` to the browser check.
+- [x] Add `tools_stay_inside_canvas`, `modal_stays_inside_canvas`, and `card_data_survives_shell_change` to the browser check.
 
-- [ ] Assert icon controls, accessible names, focus return, tooltip access, and no permanent workflow strip.
+- [x] Assert icon controls, accessible names, focus return, tooltip access, and no permanent workflow strip.
 
-- [ ] Implement fixed viewport docks. Pan and zoom change the world layer only.
+- [x] Implement fixed viewport docks. Pan and zoom change the world layer only.
 
-- [ ] Reuse current card IDs, layout saves, and service counts. Keep unavailable backend controls visibly unavailable.
+- [x] Reuse current card IDs, layout saves, and service counts. Keep unavailable backend controls visibly unavailable.
 
-- [ ] Run `CHECKS=studio-shell-check STAGES=browser bash tools/frontend/check-all.sh`. Check all three themes and widths 1440, 768, and 390.
+- [x] Run `CHECKS=studio-shell-check STAGES=browser bash tools/frontend/check-all.sh`. Check all three themes and widths 1440, 768, and 390.
 
 ## B1 — Add access profiles and explicit draft tests
 
@@ -200,15 +200,15 @@ Create `tools/frontend/studio-router-check.cjs`.
 Reuse `NewRouter`, `EditableSection`, and the current router-edit transport.
 Extend the shared frontend form components when required. Do not create a second connection/credential implementation.
 
-- [ ] Add pure tests `unsupported_field_is_not_selectable`, `source_switch_keeps_each_draft`, and `unenrolled_router_keeps_connection_editor` in `topology_studio_model.rs`.
+- [x] Add pure tests `unsupported_field_is_not_selectable`, `source_switch_keeps_each_draft`, and `unenrolled_router_keeps_connection_editor` in `topology_studio_model.rs`.
 
-- [ ] Add browser tests for source icons, access profiles, explicit test, typed query fields, group selection, and rate precedence.
+- [x] Add browser tests for source icons, access profiles, explicit test, typed query fields, group selection, and rate precedence.
 
-- [ ] Implement a `StudioDraft` state with router ID, base revisions, policy drafts, and local epoch. Keep secret inputs separate.
+- [x] Implement a `StudioDraft` state with router ID, base revisions, policy drafts, and local epoch. Keep secret inputs separate.
 
-- [ ] Run `cargo test --locked -p web-ui topology_studio_model` before and after implementation.
+- [x] Run `cargo test --locked -p web-ui topology_studio_model` before and after implementation.
 
-- [ ] Run `CHECKS=studio-router-check STAGES=browser bash tools/frontend/check-all.sh` against the fixture.
+- [x] Run `CHECKS=studio-router-check STAGES=browser bash tools/frontend/check-all.sh` against the fixture.
 
 ## B3 — Evaluate policies without durable side effects
 
@@ -244,17 +244,17 @@ Create `tools/frontend/studio-preview-check.cjs`.
 **Interface:** Use `StudioJobRequest`, existing `Operation`, and candidate page types directly from `web-contract`.
 Add a typed source-job client without changing the old endpoint error shape.
 
-- [ ] Add `old_preview_cannot_replace_new_draft` and assert an old epoch leaves the newer router and policy draft untouched.
+- [x] Add `old_preview_cannot_replace_new_draft` and assert an old epoch leaves the newer router and policy draft untouched.
 
-- [ ] Add `expired_candidate_keeps_draft`, `load_saved_sends_no_mutation`, and `secret_input_is_not_in_draft_state`.
+- [x] Add `expired_candidate_keeps_draft`, `load_saved_sends_no_mutation`, and `secret_input_is_not_in_draft_state`.
 
-- [ ] Add `different_actor_cannot_recover_draft`. Reauthentication can recover only that actor's non-secret draft in the current tab.
+- [x] Add `different_actor_cannot_recover_draft`. Reauthentication can recover only that actor's non-secret draft in the current tab.
 
-- [ ] Overlay candidate nodes and diff markers on the same canvas. Keep counts distinct from throughput.
+- [x] Overlay candidate nodes and diff markers on the same canvas. Keep counts distinct from throughput.
 
-- [ ] Add paged issue/record details, source provenance, freshness, explicit refresh, and request-key recovery.
+- [x] Add paged issue/record details, source provenance, freshness, explicit refresh, and request-key recovery.
 
-- [ ] Run `cargo test --locked -p web-ui topology_studio_model` and `CHECKS=studio-preview-check STAGES=browser bash tools/frontend/check-all.sh`.
+- [x] Run `cargo test --locked -p web-ui topology_studio_model` and `CHECKS=studio-preview-check STAGES=browser bash tools/frontend/check-all.sh`.
 
 ## B4 — Save source policy through the current writer path
 
@@ -328,15 +328,15 @@ Create `tools/frontend/studio-apply-check.cjs`.
 Use `EditRequest` with `router.sources_set` and the exact expected registry revision.
 Reuse current operation status and publication evidence.
 
-- [ ] Add `config_save_is_separate_from_policy_save`, `saved_is_not_applied`, and `retry_uses_the_same_key` browser scenarios.
+- [x] Add `config_save_is_separate_from_policy_save`, `saved_is_not_applied`, and `retry_uses_the_same_key` browser scenarios.
 
-- [ ] Add a policy save path that works without a prior preview. Keep draft values after any refusal.
+- [x] Add a policy save path that works without a prior preview. Keep draft values after any refusal.
 
-- [ ] Make Load saved topology read cached saved state without policy, layout, router, or output mutation.
+- [x] Make Load saved topology read cached saved state without policy, layout, router, or output mutation.
 
-- [ ] Remove fixture-only assumptions. Keep unsupported capabilities unavailable on old services.
+- [x] Remove fixture-only assumptions. Keep unsupported capabilities unavailable on old services.
 
-- [ ] Run `CHECKS=studio-router-check\ studio-preview-check\ studio-apply-check STAGES=browser bash tools/frontend/check-all.sh`.
+- [x] Run `CHECKS=studio-router-check\ studio-preview-check\ studio-apply-check STAGES=browser bash tools/frontend/check-all.sh`.
 
 ## I0 — Integrate both lanes and prove the result
 

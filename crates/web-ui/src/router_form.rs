@@ -129,7 +129,10 @@ pub(crate) fn follow(c: Ctx, saved: Saved) {
 
 /// The two save stages for one router, in place, with the reload result and warnings.
 #[component]
-pub(crate) fn SavedNotice(router_id: String) -> impl IntoView {
+pub(crate) fn SavedNotice(
+    router_id: String,
+    #[prop(default = false)] icons: bool,
+) -> impl IntoView {
     let c = ctx();
     let id = router_id.clone();
     let mine = Memo::new(move |_| c.saved.get().filter(|s| s.router_id == id));
@@ -153,7 +156,7 @@ pub(crate) fn SavedNotice(router_id: String) -> impl IntoView {
           }})}
           {(s.reload!="sent").then(||view!{<p class="router-warn">{format!("The reload signal did not reach the service: {}. The change applies when the service starts again.",s.reload)}</p>})}
           {s.warnings.iter().map(|w|view!{<p class="router-warn">{w.clone()}</p>}).collect_view()}
-          <button type="button" class="quiet" on:click=move|_|c.saved.set(None)>"Dismiss"</button>
+          <button type="button" class=if icons{"canvas-tool"}else{"quiet"} aria-label="Dismiss" title="Dismiss" on:click=move|_|c.saved.set(None)>{if icons{crate::topology_canvas::icon("M6 6l12 12M18 6 6 18").into_any()}else{"Dismiss".into_any()}}</button>
         </div>
       })}
     }
@@ -229,8 +232,8 @@ fn ConnectionFields(
     form: RwSignal<Form>,
     errors: RwSignal<Vec<(&'static str, String)>>,
     new: bool,
+    #[prop(default = false)] icons: bool,
 ) -> impl IntoView {
-    let show = RwSignal::new(false);
     let invalid =
         move |k: &'static str| errors.with(|e| e.iter().any(|(x, _)| *x == k)).to_string();
     let ca_error = RwSignal::new(String::new());
@@ -283,28 +286,44 @@ fn ConnectionFields(
           <p class="field-error" aria-live="polite">{move||ca_error.get()}</p>
           <Show when=move||form.with(|f|f.ca_pem.is_some())>
             <p class="field-help">{move||format!("Selected: {}",form.with(|f|f.ca_name.clone()))}
-              " "<button type="button" class="link" on:click=move|_|form.update(|f|{f.ca_pem=None;f.ca_name.clear();})>"Remove the selection"</button></p>
+              " "<button type="button" class=if icons{"canvas-tool"}else{"link"} aria-label="Remove the selection" title="Remove the selection" on:click=move|_|form.update(|f|{f.ca_pem=None;f.ca_name.clear();})>{if icons{crate::topology_canvas::icon("M6 6l12 12M18 6 6 18").into_any()}else{"Remove the selection".into_any()}}</button></p>
           </Show>
         </Field>
       </Show>
-      <Field id="username" label="RouterOS user" help="Use a read-only RouterOS user." errors>
+      <CredentialFields form errors new icons/>
+    }
+}
+
+/// Shared credential fields. Studio keeps this form outside its policy draft.
+#[component]
+pub(crate) fn CredentialFields(
+    form: RwSignal<Form>,
+    errors: RwSignal<Vec<(&'static str, String)>>,
+    new: bool,
+    #[prop(default = false)] icons: bool,
+) -> impl IntoView {
+    let show = RwSignal::new(false);
+    let invalid =
+        move |k: &'static str| errors.with(|e| e.iter().any(|(x, _)| *x == k)).to_string();
+    view! {
+      <Field id="username" label="RouterOS user" help="Use the RouterOS user for this connection. Read-only access is sufficient for discovery." errors>
         <input id="username" type="text" autocomplete="off" spellcheck="false" maxlength="64" required
           aria-invalid=move||invalid("username") aria-describedby="username-help username-error"
           prop:value=move||form.with(|f|f.username.clone()) on:input=set_text(form,|f,v|f.username=v)/>
       </Field>
       {(!new).then(||view!{
         <div class="check">
-          <input id="replace_password" type="checkbox" prop:checked=move||form.with(|f|f.replace_password) on:change=set_check(form,|f,v|f.replace_password=v)/>
+          <input id="replace_password" type="checkbox" prop:checked=move||form.with(|f|f.replace_password) on:change=set_check(form,|f,v|{f.replace_password=v;if !v{f.password.clear();}})/>
           <label for="replace_password">"Replace the credential"<small>"Without this, the current credential stays. You confirm with your own password."</small></label>
         </div>
       })}
       <Show when=move||new||form.with(|f|f.replace_password)>
-        <Field id="password" label="Credential" help="The password of the RouterOS user. The server stores it; the page never shows it again." errors>
+        <Field id="password" label="Credential" help="The RouterOS password. Responses never return a stored credential." errors>
           <div class="password-field">
             <input id="password" type=move||if show.get(){"text"}else{"password"} autocomplete="new-password" maxlength="256" required
               aria-invalid=move||invalid("password") aria-describedby="password-help password-error"
               prop:value=move||form.with(|f|f.password.clone()) on:input=set_text(form,|f,v|f.password=v)/>
-            <button type="button" aria-label=move||if show.get(){"Hide credential"}else{"Show credential"} on:click=move|_|show.update(|v| *v = !*v)>{move||if show.get(){"Hide"}else{"Show"}}</button>
+            <button type="button" aria-label=move||if show.get(){"Hide credential"}else{"Show credential"} class:canvas-tool=icons title=move||if show.get(){"Hide credential"}else{"Show credential"} on:click=move|_|show.update(|v| *v = !*v)>{if icons{crate::topology_canvas::icon("M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0").into_any()}else{view!{<span>{move||if show.get(){"Hide"}else{"Show"}}</span>}.into_any()}}</button>
           </div>
         </Field>
       </Show>
@@ -364,7 +383,12 @@ const STEPS: [&str; 3] = ["Connection", "Sources", "Review"];
 
 /// Add router: three steps. The router is saved disabled; it gets no connection until an enable.
 #[component]
-pub(crate) fn NewRouter() -> impl IntoView {
+pub(crate) fn NewRouter(
+    #[prop(optional)] on_added: Option<Callback<String>>,
+    #[prop(optional)] on_closed: Option<Callback<()>>,
+    #[prop(default = false)] studio: bool,
+    #[prop(default = false)] draft_test: bool,
+) -> impl IntoView {
     let dialog = NodeRef::<leptos::html::Dialog>::new();
     Effect::new(move |_| {
         if let Some(d) = dialog.get() {
@@ -425,6 +449,8 @@ pub(crate) fn NewRouter() -> impl IntoView {
             {
                 Ok(reply) => {
                     let href = router_href(&reply.router_id, Tab::Overview);
+                    let id = reply.router_id.clone();
+                    form.update(|f| f.password.clear());
                     follow(
                         c,
                         Saved {
@@ -436,7 +462,11 @@ pub(crate) fn NewRouter() -> impl IntoView {
                             disable: false,
                         },
                     );
-                    go_to(nav, &href);
+                    if let Some(done) = on_added {
+                        done.run(id);
+                    } else {
+                        go_to(nav, &href);
+                    }
                 }
                 Err(f) => failure.set(f.message),
             }
@@ -444,10 +474,12 @@ pub(crate) fn NewRouter() -> impl IntoView {
         });
     };
     view! {
-      <dialog node_ref=dialog class="add-router-dialog" aria-labelledby="add-router-title" aria-describedby="add-router-help"
+      <dialog node_ref=dialog class=if studio{"topology-dialog add-router-dialog"}else{"add-router-dialog"} data-panel="studio-add" aria-labelledby="add-router-title" aria-describedby="add-router-help"
         on:cancel=move|ev: web_sys::Event|{if busy.get_untracked(){ev.prevent_default();}}
         on:close=move|_|{
-          if nav.get_untracked()==crate::route_model::Page::NewRouter {
+          form.update(|f|f.password.clear());
+          if let Some(done)=on_closed{done.run(());}
+          else if nav.get_untracked()==crate::route_model::Page::NewRouter {
             go_to(nav,"/routers");
             request_animation_frame(|| {
               if let Some(button)=web_sys::window().and_then(|w|w.document()).and_then(|d|d.get_element_by_id("add-router")) {
@@ -475,7 +507,9 @@ pub(crate) fn NewRouter() -> impl IntoView {
       </ol>
       <form class="panel router-form" novalidate on:submit=move|ev|{ev.prevent_default(); if step.get_untracked()<2 {next()} else {submit()}}>
         {move||match step.get() {
-          0=>view!{<fieldset><legend>"Connection"</legend><ConnectionFields form errors new=true/></fieldset>}.into_any(),
+          0=>view!{<fieldset><legend>"Connection"</legend><ConnectionFields form errors new=true icons=studio/>
+            {studio.then(||view!{<DraftConnectionTest form supported=draft_test busy/>})}
+          </fieldset>}.into_any(),
           1=>view!{<fieldset><legend>"Sources"</legend><SourceFields form errors/></fieldset>}.into_any(),
           _=>form.with(|f|{
             let roles:Vec<&str>=[(f.pppoe,"PPPoE"),(f.dhcp,"DHCP"),(f.hotspot,"Hotspot")].into_iter().filter(|(on,_)|*on).map(|(_,l)|l).collect();
@@ -495,10 +529,10 @@ pub(crate) fn NewRouter() -> impl IntoView {
         }}
         <Show when=move||!failure.get().is_empty()><p class="form-failure" role="alert">{move||failure.get()}</p></Show>
         <div class="form-actions">
-          <Show when=move||{step.get()>0}><button type="button" class="quiet" on:click=move|_|{errors.set(Vec::new());step.update(|s|*s-=1);}>"Back"</button></Show>
-          <button type="button" class="quiet" disabled=move||busy.get() on:click=move|_|{if let Some(d)=dialog.get(){d.close();}}>"Cancel"</button>
-          <button type="submit" class="primary" disabled=move||busy.get()||digest.with(String::is_empty)>
-            {move||match (step.get(),busy.get()) {(2,true)=>"Adding…",(2,false)=>"Add router",_=>"Next"}}
+          <Show when=move||{step.get()>0}><button type="button" class="quiet" class:canvas-tool=studio on:click=move|_|{errors.set(Vec::new());step.update(|s|*s-=1);} aria-label="Back" title="Back">{if studio{crate::topology_canvas::icon("M15 5l-7 7 7 7").into_any()}else{"Back".into_any()}}</button></Show>
+          <button type="button" class="quiet" class:canvas-tool=studio disabled=move||busy.get() on:click=move|_|{if let Some(d)=dialog.get(){d.close();}} aria-label="Cancel" title="Cancel">{if studio{crate::topology_canvas::icon("M6 6l12 12M18 6 6 18").into_any()}else{"Cancel".into_any()}}</button>
+          <button type="submit" class="primary" class:canvas-tool=studio disabled=move||busy.get()||digest.with(String::is_empty) aria-label=move||if step.get()==2{"Add router"}else{"Next"} title=move||if step.get()==2{"Add router"}else{"Next"}>
+            {if studio{view!{<span>{move||crate::topology_canvas::icon(if step.get()==2{"M5 12l4 4L19 6"}else{"M9 5l7 7-7 7"})}</span>}.into_any()}else{view!{<span>{move||match (step.get(),busy.get()) {(2,true)=>"Adding…",(2,false)=>"Add router",_=>"Next"}}</span>}.into_any()}}
           </button>
         </div>
       </form>
@@ -509,17 +543,21 @@ pub(crate) fn NewRouter() -> impl IntoView {
 /// The password check before a credential replacement (owner decision D2). A native modal dialog
 /// keeps focus inside, closes with Escape, and returns focus to the trigger.
 #[component]
-fn Reauth(
+pub(crate) fn Reauth(
     open: RwSignal<bool>,
     error: RwSignal<String>,
     on_confirm: Callback<String>,
+    #[prop(optional, into)] on_cancel: Option<Callback<()>>,
+    #[prop(default = false)] studio: bool,
 ) -> impl IntoView {
     let dialog = NodeRef::<leptos::html::Dialog>::new();
     let password = RwSignal::new(String::new());
+    let submitted = StoredValue::new(false);
     Effect::new(move |_| {
         let Some(d) = dialog.get() else { return };
         if open.get() {
             if !d.open() {
+                submitted.set_value(false);
                 let _ = d.show_modal();
             }
         } else if d.open() {
@@ -527,8 +565,8 @@ fn Reauth(
         }
     });
     view! {
-      <dialog node_ref=dialog class="reauth" aria-labelledby="reauth-title" on:close=move|_|{open.set(false);password.set(String::new());}>
-        <form method="dialog" on:submit=move|ev|{ev.prevent_default();on_confirm.run(password.get_untracked());}>
+      <dialog node_ref=dialog class=if studio{"reauth topology-dialog"}else{"reauth"} data-panel="settings" aria-labelledby="reauth-title" on:close=move|_|{open.set(false);password.set(String::new());if !submitted.get_value()&&let Some(cb)=on_cancel{cb.run(());}}>
+        <form method="dialog" on:submit=move|ev|{ev.prevent_default();submitted.set_value(true);on_confirm.run(password.get_untracked());}>
           <h2 id="reauth-title">"Confirm with your password"</h2>
           <p>"Replacing a router credential needs your current LQoSync password."</p>
           <label for="current-password">"Your password"</label>
@@ -536,8 +574,8 @@ fn Reauth(
             prop:value=move||password.get() on:input=move|ev|password.set(event_target_value(&ev))/>
           <p class="field-error" role="alert">{move||error.get()}</p>
           <div class="form-actions">
-            <button type="button" class="quiet" on:click=move|_|open.set(false)>"Cancel"</button>
-            <button type="submit" class="primary">"Confirm and save"</button>
+            <button type="button" class="quiet" class:canvas-tool=studio on:click=move|_|open.set(false) aria-label="Cancel" title="Cancel">{if studio{crate::topology_canvas::icon("M6 6l12 12M18 6 6 18").into_any()}else{"Cancel".into_any()}}</button>
+            <button type="submit" class="primary" class:canvas-tool=studio aria-label="Confirm and save" title="Confirm and save">{if studio{crate::topology_canvas::icon("M5 12l4 4L19 6").into_any()}else{"Confirm and save".into_any()}}</button>
           </div>
         </form>
       </dialog>
@@ -566,7 +604,11 @@ fn ActionHint(label: &'static str, children: Children) -> impl IntoView {
 
 /// A Connection or Sources section: the facts, and an editor after Edit.
 #[component]
-pub(crate) fn EditableSection(router: RouterSummary, section: Section) -> impl IntoView {
+pub(crate) fn EditableSection(
+    router: RouterSummary,
+    section: Section,
+    #[prop(default = false)] icons: bool,
+) -> impl IntoView {
     let c = ctx();
     let editing = RwSignal::new(false);
     let form = RwSignal::new(Form::from(&router));
@@ -597,6 +639,10 @@ pub(crate) fn EditableSection(router: RouterSummary, section: Section) -> impl I
             {
                 Ok(reply) => {
                     reauth.set(false);
+                    form.update(|f| {
+                        f.password.clear();
+                        f.replace_password = false;
+                    });
                     editing.set(false);
                     follow(
                         c,
@@ -677,7 +723,7 @@ pub(crate) fn EditableSection(router: RouterSummary, section: Section) -> impl I
       }>
         <form class="router-form inline" novalidate on:submit=move|ev|{ev.prevent_default();submit();}>
           {match section {
-            Section::Connection=>view!{<ConnectionFields form errors new=false/>}.into_any(),
+            Section::Connection=>view!{<ConnectionFields form errors new=false icons/>}.into_any(),
             Section::Sources=>view!{<SourceFields form errors/>}.into_any(),
           }}
           <Show when=move||section==Section::Sources && form.with(|f|removes_a_source(f,&r.get_value()))>
@@ -685,11 +731,11 @@ pub(crate) fn EditableSection(router: RouterSummary, section: Section) -> impl I
           </Show>
           <Show when=move||!failure.get().is_empty()><p class="form-failure" role="alert">{move||failure.get()}</p></Show>
           <div class="form-actions start">
-            <button type="submit" class="primary" disabled=move||busy.get()>{move||if busy.get(){"Saving…"}else{"Save changes"}}</button>
-            <button type="button" class="quiet" on:click=move|_|editing.set(false)>"Cancel"</button>
+            <button type="submit" class="primary" class:canvas-tool=icons aria-label="Save changes" title="Save changes" disabled=move||busy.get()>{if icons{crate::topology_canvas::icon("M5 12l4 4L19 6").into_any()}else{view!{<span>{move||if busy.get(){"Saving…"}else{"Save changes"}}</span>}.into_any()}}</button>
+            <button type="button" class="quiet" class:canvas-tool=icons aria-label="Cancel" title="Cancel" on:click=move|_|{form.update(|f|{f.password.clear();f.replace_password=false;});editing.set(false);}>{if icons{crate::topology_canvas::icon("M6 6l12 12M18 6 6 18").into_any()}else{"Cancel".into_any()}}</button>
           </div>
         </form>
-        <Reauth open=reauth error=reauth_error on_confirm=Callback::new(move|pw:String|save(Some(pw)))/>
+        <Reauth open=reauth error=reauth_error on_confirm=Callback::new(move|pw:String|save(Some(pw))) studio=icons/>
       </Show>
     }
 }
@@ -1062,4 +1108,140 @@ pub(crate) fn SyncNow(message: RwSignal<Option<(&'static str, &'static str)>>) -
         </svg>
       </button>
     }
+}
+
+/// A one-shot test reuses the connection fields, their checks, and the operation transport.
+#[component]
+fn DraftConnectionTest(
+    form: RwSignal<Form>,
+    supported: bool,
+    busy: RwSignal<bool>,
+) -> impl IntoView {
+    use web_contract::source_studio::*;
+    let c = ctx();
+    let message = RwSignal::new(String::new());
+    let report = RwSignal::new(None::<(String, DraftTestReport)>);
+    let epoch = RwSignal::new(0u64);
+    let alive = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
+    let end = alive.clone();
+    on_cleanup(move || end.store(false, std::sync::atomic::Ordering::Relaxed));
+    let signature = move || {
+        form.with(|f| {
+            format!(
+                "{:?}",
+                (
+                    &f.address,
+                    &f.port,
+                    f.tls,
+                    f.tls_verify,
+                    &f.username,
+                    &f.ca_pem
+                )
+            )
+        })
+    };
+    let previous = StoredValue::new(signature());
+    Effect::new(move |_| {
+        form.track();
+        let next = signature();
+        let changed = previous.get_value() != next;
+        previous.set_value(next);
+        epoch.update(|n| *n = n.wrapping_add(1));
+        if changed
+            || form.with(|f| !f.password.is_empty())
+            || report.with_untracked(|r| r.as_ref().is_some_and(|(s, _)| *s != signature()))
+        {
+            report.set(None);
+            message.set(String::new());
+        }
+    });
+    let test = move || {
+        if busy.get_untracked() || !supported {
+            return;
+        }
+        let mut values = form.get_untracked();
+        values.name = "DraftTest".into();
+        let errors = check(&values, true, Section::Connection);
+        if !errors.is_empty() {
+            message.set(
+                errors
+                    .iter()
+                    .map(|(_, m)| m.as_str())
+                    .collect::<Vec<_>>()
+                    .join(" "),
+            );
+            return;
+        }
+        let sources = [
+            (values.pppoe, SourceKind::Ppp),
+            (values.dhcp, SourceKind::Dhcp),
+            (values.hotspot, SourceKind::Hotspot),
+        ]
+        .into_iter()
+        .filter(|(on, _)| *on)
+        .map(|(_, s)| s)
+        .collect();
+        let connection = DraftConnection {
+            address: values.address,
+            port: values.port.parse().unwrap(),
+            tls: values.tls,
+            tls_verify: values.tls_verify,
+            username: values.username,
+            password: SecretInput(values.password),
+            ca_pem: values.ca_pem,
+        };
+        let at = epoch.get_untracked();
+        let sig = signature();
+        let actor = c.session.get_untracked().map(|p| p.username);
+        busy.set(true);
+        message.set(String::new());
+        report.set(None);
+        let alive = alive.clone();
+        leptos::task::spawn_local(async move {
+            let key = crate::topology_forms::new_key();
+            let request = StudioJobRequest {
+                key: key.clone(),
+                job: StudioJob::DraftTest {
+                    connection,
+                    required_sources: sources,
+                },
+            };
+            let result =
+                crate::topology_studio_api::job(c.session, &request, JOB_DEADLINE_SECS, false)
+                    .await;
+            drop(request);
+            if !alive.load(std::sync::atomic::Ordering::Relaxed) {
+                return;
+            }
+            let current = at == epoch.get_untracked()
+                && actor == c.session.get_untracked().map(|p| p.username);
+            form.update(|f| f.password.clear());
+            busy.set(false);
+            if !current {
+                message.set("The connection changed. Test the current draft again.".into());
+                return;
+            }
+            match result {
+                Ok(op) if op.state == "done" => {
+                    match op.source_result {
+                        Some(StudioJobResult::DraftTest(r)) => {
+                            report.set(Some((sig, r)));
+                            message.set("Draft test completed. Enter the credential again before registration.".into());
+                        }
+                        _ => message
+                            .set("The draft test answer is not valid. Retry explicitly.".into()),
+                    }
+                }
+                _ => message.set(
+                    "The draft test failed or its result is unknown. Retry explicitly.".into(),
+                ),
+            }
+        });
+    };
+    view! {<div class="studio-draft-test">
+        <button type="button" class="router-icon secondary" aria-label="Test draft connection" title="Test draft connection" disabled=move||busy.get()||!supported on:click=move|_|test()>{crate::topology_canvas::icon("M5 3v5h14V3M5 16v5M19 16v5M3 8h18v8H3M12 11v2")}</button>
+        <p class="field-help">{if supported{"Explicit one-shot test. It saves no router and enables no periodic collection."}else{"Draft testing is unavailable on this backend."}}</p>
+        <p role="status">{move||if busy.get(){"Testing draft connection…".into()}else{message.get()}}</p>
+        {move||report.get().map(|(_,r)|view!{<ul>{r.checks.into_iter().map(|check|view!{<li>{format!("{}: {} ({})",crate::topology_studio_model::key(&check.stage),crate::topology_studio_model::key(&check.state),check.code)}</li>}).collect_view()}</ul>})}
+    </div>}
 }

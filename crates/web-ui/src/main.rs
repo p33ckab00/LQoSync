@@ -76,6 +76,23 @@ mod topology_inventory_model;
 #[cfg(any(target_arch = "wasm32", test))]
 mod topology_model;
 #[cfg(target_arch = "wasm32")]
+mod topology_studio_help;
+#[cfg(target_arch = "wasm32")]
 mod workers;
 #[cfg(any(target_arch = "wasm32", test))]
 mod workers_model;
+
+#[cfg(any(target_arch = "wasm32", test))]
+mod topology_studio_model;
+
+#[cfg(target_arch = "wasm32")]
+mod topology_source_editor;
+#[cfg(target_arch = "wasm32")]
+mod topology_studio;
+
+#[cfg(target_arch = "wasm32")]
+mod topology_studio_api;
+#[cfg(target_arch = "wasm32")]
+mod topology_studio_preview;
+#[cfg(target_arch = "wasm32")]
+mod topology_studio_save;

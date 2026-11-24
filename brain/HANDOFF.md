@@ -8,6 +8,69 @@ related: ["[[2026-10-31-project-setup-and-v3-simulation]]"]
 
 # Handoff
 
+## 2026-11-24T12:19:57+08:00 (Asia/Manila) — Topology Studio F3 complete
+
+- Last agent: Codex. Goal: separate access/policy saves, conflict recovery, and runtime evidence.
+- Branch: `codex/topology-studio-ui`. Worktree: `/home/pi/LQoSync3.0-worktrees/codex-topology-studio-ui`.
+- Base: `3ee06d0`. Contract adoption: `3f86730` from backend `4ec8a0a`.
+- Code commits: `5812e74`, `5de4afa`, `41ffe5a`.
+- Changed: Studio API/model/save/editor, router forms, canvas integration, module registration, and three browser checks.
+- Workspace after the main corrections: 2047 passed, 0 failed, 13 ignored. Native/Wasm Clippy passed.
+- Final ID/reload changes: all 96 web-ui tests and native/Wasm Clippy passed. Format and whitespace passed.
+- On `41ffe5a`, all 27 browser checks and both builds passed. The established `pulse-check` exclusion remains.
+- Logs: `/tmp/lqosync-checks.yKJtHH/`. Final web-ui tests: `/tmp/lqosync-f3-final-ui-tests.log`.
+- Independent review found two Critical and six Important defects. One correction pass supplied regression proof. No second review ran.
+- Minor deferred: username whitespace and byte-count validation can differ from the backend. The backend refuses invalid values.
+- Return packet: `docs/handoffs/2026-11-23-codex-topology-frontend.md`. Evidence: `docs/frontend/evidence/topology-studio-f3/`.
+- Unfinished: I0 real service integration and runtime publication proof. These frontend checks use B0 fixtures and browser overrides.
+- Next: I0 with backend packet `86b9aa4`. B5 is complete in that worktree. Align its default-only read profile constraint.
+- Throughput and the owner Sankey reference remain follow-up work after integration.
+- No merge, push, deploy, production service change, or live router I/O occurred. Keep the branch and worktree.
+
+## 2026-11-24T06:51:39+08:00 (Asia/Manila) — Topology Studio F2 complete
+
+- Last agent: Codex. Goal: explicit read-only discovery and candidate preview from the shared plan.
+- Branch: `codex/topology-studio-ui`. Worktree: `/home/pi/LQoSync3.0-worktrees/codex-topology-studio-ui`.
+- Base: `f58b924`. Code commits: `93d5a44`, `d546293`. Test correction: `b5325fc`. Contract: B0 `f7e3977`.
+- Changed: typed Studio API, preview controller, draft model, app memory, router forms, canvas, CSS, help, and two browser checks.
+- Workspace: 2037 passed, 0 failed, 13 ignored. Workspace native/Wasm Clippy passed before the final modal fix.
+- Final modal fix: native/Wasm Clippy for `web-ui`, format, whitespace, and the full browser gate passed.
+- Browser: 24 checks and both builds passed. `pulse-check` remained the established exclusion. Logs: `/tmp/lqosync-checks.T2xkuC/`.
+- Independent review could not run because of a usage limit. Separate author review found a card modal that covered preview. Regression proof now passes.
+- Deferred minor: an older snapshot selection can hide the locally collected choice if cached metadata omits it.
+- Return packet: `docs/handoffs/2026-11-23-codex-topology-frontend.md`. Evidence: `docs/frontend/evidence/topology-studio-f2/`.
+- Unfinished: F3, backend integration, and I0. Backend work has its own status. Only B0 fixture behavior was checked.
+- Next: F3 after review of the B4/B5 behavior. Check explicit-profile username semantics and the combined plan-binding limit.
+- No backend or fixture edit, live service change, merge, push, or deploy occurred. Keep the branch and worktree.
+
+## 2026-11-24T00:03:19+08:00 (Asia/Manila) — Topology Studio F1 complete
+
+- Last agent: Codex. Goal: the router modal and typed source editor from the shared plan.
+- Branch: `codex/topology-studio-ui`. Worktree: `/home/pi/LQoSync3.0-worktrees/codex-topology-studio-ui`.
+- Base: `18ec855`. Code commits: `19397ac`, `9e18dd6`. Contract: B0 `f7e3977`.
+- Changed: Studio client/model/editor, shared router forms, canvas integration, CSS, help, and two browser checks.
+- Workspace: 2030 passed, 0 failed, 13 ignored. Native/Wasm Clippy, format, and whitespace passed.
+- Browser: 22 checks and both builds passed. `pulse-check` remained the established exclusion.
+- Review: the secret-lifecycle defect and clipped phone selector have regression proof. The minor combined binding limit remains for F3.
+- Return packet: `docs/handoffs/2026-11-23-codex-topology-frontend.md`. Evidence: `docs/frontend/evidence/topology-studio-f1/`.
+- Unfinished: F2 preview, F3 persistence/recovery, integration, and I0. The backend lane supplies its own status.
+- Next: F2 with the B0 fixture. Check explicit-profile username/edit semantics before F3. Keep the branch and worktree.
+- No backend or fixture edit, live service change, merge, push, or deploy occurred.
+
+## 2026-11-23T23:08:19+08:00 (Asia/Manila) — Topology Studio F0 complete
+
+- Last agent: Codex. Goal: the accepted canvas shell, with current service behavior intact.
+- Branch: `codex/topology-studio-ui`. Worktree: `/home/pi/LQoSync3.0-worktrees/codex-topology-studio-ui`.
+- Base: `a0e6035`. Code commits: `4b5b424`, `2918086`, `1faa0c0`. Shared contract: `f7e3977`.
+- Changed: Leptos canvas and theme controls, optional help, CSS, two Studio browser checks, and the current canvas check.
+- Workspace tests: 2023 passed, 0 failed, 13 ignored. Native/Wasm Clippy, format, and whitespace checks passed.
+- The full browser gate passed 20 checks. `pulse-check` remained the established exclusion. Fixture and Wasm builds passed.
+- Independent review: all five important findings fixed with RED/GREEN evidence. The minor Reload/header-close keyboard tooltip remains deferred.
+- Return packet: `docs/handoffs/2026-11-23-codex-topology-frontend.md`. Evidence: `docs/frontend/evidence/topology-studio-f0/`.
+- Production state: unchanged. No merge, push, or deploy. No backend, contract, or fixture edit.
+- Remaining plan scope: F1–F3, backend B1–B5, integration, and I0. The backend lane supplies its own status.
+- Next action: start F1 with the B0 types and fixture. Keep the branch and worktree.
+
 ## 2026-11-23T17:38:53+08:00 (Asia/Manila) — Topology Studio B0: contract version 1
 
 - Last agent: Claude Code (backend lane). Branch `lqosync3`. Worktree `/home/pi/LQoSync3.0`.

@@ -11,6 +11,14 @@ Read [[HANDOFF]] first for the current state.
 
 ## Sessions
 
+- [[2026-11-24-topology-studio-f3]] — Separate access/policy saves, conflict merge, receipt recovery, and runtime evidence
+
+- [[2026-11-24-topology-studio-f2]] — Read-only discovery, candidate canvas, validation evidence, and actor-bound draft recovery
+
+- [[2026-11-23-topology-studio-f1]] — Typed router/source drafts, shared connection forms, and explicit draft test
+
+- [[2026-11-23-topology-studio-f0]] — Real Leptos canvas shell, optional guide, bounded panels, and shared themes
+
 - [[2026-11-23-topology-studio-tandem-plan]] — Frontend/backend contract, owner tasks, and lane handoffs
 
 - [[2026-11-23-topology-studio-design-review]] — Supplied DOCX/SVG review, source gaps, and proposed implementation phases
@@ -198,6 +206,8 @@ Read [[HANDOFF]] first for the current state.
 - [[ADR-0010-first-full-libreqos-run]] — accepted
 
 ## Knowledge
+
+- [[topology-studio-save-recovery]] — Save ordering, unknown outcomes, assigned IDs, and merge invariants
 
 - [[topology-manager-status]] — backend, Runner APIs, TUI, scheduler, and activation status
 - [[libreqos-v3-ingress-facts]]
