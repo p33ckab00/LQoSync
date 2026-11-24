@@ -332,10 +332,11 @@ impl Save {
         }
         let state = self.memory.with_untracked(|m| m.access.get(id).cloned());
         if let Some(mut a) = state
-            && a.phase == "saved"
+            && (a.phase == "saved"
+                || (a.phase == "reload_unconfirmed" && a.before_digest != a.digest))
             && a.digest == c.config_digest
             && a.digest == c.loaded_config_digest
-            && a.reload == "sent"
+            && (a.reload == "sent" || a.before_digest != a.digest)
         {
             if a.secret_profile.is_some() && a.before_digest == a.digest {
                 a.phase = "digests_match".into();
@@ -739,7 +740,7 @@ impl Save {
 #[component]
 pub(crate) fn SaveUi(state: Save) -> impl IntoView {
     view! {<section class="studio-save-evidence" aria-label="Source save status"><p role="status">{move||state.status()}</p><p class="field-help">{move||state.reason()}</p>
-      {move||state.access().filter(|a|!a.digest.is_empty()).map(|a|view!{<div><p class="field-help">{format!("Access configuration saved separately · digest {} · reload {}.",a.digest,a.reload)}</p>{a.warnings.into_iter().map(|w|view!{<p class="notice">{w}</p>}).collect_view()}</div>})}
+      {move||state.access().filter(|a|!a.digest.is_empty()).map(|a|view!{<div><p class="field-help">{format!("Access configuration saved separately · digest {} · initial reload result {}.",a.digest,a.reload)}</p>{a.warnings.into_iter().map(|w|view!{<p class="notice">{w}</p>}).collect_view()}</div>})}
       <Show when=move||state.data.with(|s|s.as_ref().is_some_and(|s|s.nodes_truncated))><p class="notice">"The cached topology is truncated. It does not show the complete policy projection."</p></Show>
       <Show when=move||state.draft.with(|d|d.as_ref().is_some_and(|d|d.policies.is_empty()))><p class="notice">"Saving this empty set explicitly selects no source policies for this router."</p></Show>
       {move||state.conflicts.get().into_iter().filter(move|_|state.id()==state.conflict_router.get()).map(move|c|{let local=c.key.clone();let saved=c.key.clone();let ls=c.key.clone();let rs=c.key.clone();view!{<div class="notice"><p>{c.label}</p><details><summary>"Draft and saved values"</summary><strong>"Draft"</strong><pre style="white-space:pre-wrap;overflow-wrap:anywhere;max-block-size:160px;overflow:auto">{c.local}</pre><strong>"Saved"</strong><pre style="white-space:pre-wrap;overflow-wrap:anywhere;max-block-size:160px;overflow:auto">{c.saved}</pre></details><button type="button" class="canvas-tool" aria-label=format!("Keep draft {}",c.key) title="Keep the draft version of this entry" aria-pressed=move||state.choices.with(|v|v.get(&ls)==Some(&true)).to_string() on:click=move|_|state.choices.update(|v|{v.insert(local.clone(),true);})>{crate::topology_canvas::icon("M16 3l5 5-12 12-6 1 1-6z")}</button><button type="button" class="canvas-tool" aria-label=format!("Use saved {}",c.key) title="Use the saved version of this entry" aria-pressed=move||state.choices.with(|v|v.get(&rs)==Some(&false)).to_string() on:click=move|_|state.choices.update(|v|{v.insert(saved.clone(),false);})>{crate::topology_canvas::icon("M3 5h18v14H3zM7 9h10M7 13h6")}</button></div>}}).collect_view()}

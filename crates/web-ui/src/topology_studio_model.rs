@@ -391,38 +391,45 @@ pub(crate) fn adopt_saved_ids(
             .as_ref()
             .and_then(|r| r.parse::<u64>().ok())
             .is_none_or(|r| r < saved)
-        || p.rows.len() != c.policies.len()
     {
         return false;
     }
-    for (row, remote) in p.rows.iter().zip(&c.policies) {
-        if !same_policy_values(&row.policy, remote)
-            || remote.id.as_deref().is_none_or(str::is_empty)
-            || row
-                .policy
-                .id
-                .as_ref()
-                .is_some_and(|id| Some(id) != remote.id.as_ref())
-        {
-            return false;
+    let mut used: Vec<String> = p.rows.iter().filter_map(|r| r.policy.id.clone()).collect();
+    let mut baseline = p.rows.clone();
+    for row in &mut baseline {
+        if row.policy.id.is_none() {
+            let matches: Vec<_> = c
+                .policies
+                .iter()
+                .filter(|remote| {
+                    remote
+                        .id
+                        .as_ref()
+                        .is_some_and(|id| !id.is_empty() && !used.contains(id))
+                        && same_policy_values(&row.policy, remote)
+                })
+                .collect();
+            if matches.len() != 1 {
+                return false;
+            }
+            row.policy.id = matches[0].id.clone();
+            used.push(row.policy.id.clone().expect("matched policy has an ID"));
         }
         if d.policies
             .iter()
             .find(|l| l.local_token == row.local_token)
-            .is_some_and(|l| l.policy.id.is_some() && l.policy.id != remote.id)
+            .is_some_and(|l| l.policy.id.is_some() && l.policy.id != row.policy.id)
         {
             return false;
         }
     }
-    let mut baseline = p.rows.clone();
-    for (row, remote) in baseline.iter_mut().zip(&c.policies) {
-        row.policy.id = remote.id.clone();
+    for row in &baseline {
         if let Some(local) = d
             .policies
             .iter_mut()
             .find(|l| l.local_token == row.local_token)
         {
-            local.policy.id = remote.id.clone();
+            local.policy.id = row.policy.id.clone();
         }
     }
     d.saved_policies = baseline;
@@ -1517,7 +1524,12 @@ mod save_tests {
         saved.saved_revision = Some("43".into());
         cfg.policies = evaluation_policies(&d).unwrap();
         cfg.policies[i].id = Some("assigned-policy".into());
-        cfg.policy_revision = Some("43".into());
+        cfg.policy_revision = Some("44".into());
+        let mut remote = cfg.policies[1].clone();
+        remote.id = Some("unrelated-remote-policy".into());
+        remote.name = "Other operator entry".into();
+        remote.enabled = false;
+        cfg.policies.push(remote);
         d.policies[i].policy.name = "Edited while metadata pending".into();
         d.policies[i].priority = "invalid".into();
         assert!(adopt_saved_ids(&mut d, &saved, &cfg));
