@@ -804,6 +804,14 @@ mod operations {
         assert_eq!(revision(&r), 2, "a retry commits nothing");
         let saved = router_entry(&r, &id).source_policies.unwrap();
         assert_eq!(saved.len(), 1);
+        // save_refreshes_the_studio_cache: the source-config GET shows the save before a cycle.
+        let cache: web_contract::source_studio::StudioCache = serde_json::from_slice(
+            &std::fs::read(e.state.join(web_contract::source_studio::CACHE)).unwrap(),
+        )
+        .unwrap();
+        let view = cache.routers.iter().find(|v| v.router_id == id).unwrap();
+        assert_eq!(view.policy_revision.as_deref(), Some("2"));
+        assert_eq!(view.policies.len(), 1);
         // The current engine prepares the saved policy, as the next cycle does.
         let preview = call(&mut r, "topology.preview.refresh", json!({})).await;
         assert_eq!(preview["result"]["state"], json!("ok"), "{preview}");

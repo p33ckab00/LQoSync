@@ -1959,6 +1959,13 @@ where
                         .duration_since(std::time::UNIX_EPOCH)
                         .map_or(0, |d| d.as_secs());
                     self.publish_web_view(now);
+                    // The source-config GET reads this cache; without it a save shows until the next cycle.
+                    let doc = self.api_document().ok().flatten();
+                    self.publish_studio(
+                        doc.as_ref().map(|d| d.revision),
+                        doc.as_ref().and_then(|d| d.catalog.as_ref()),
+                        now,
+                    );
                 }
                 Ok((outcome.revision, out))
             }
