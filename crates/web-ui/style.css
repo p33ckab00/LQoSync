@@ -1179,3 +1179,21 @@ dialog.canvas-dialog[data-panel=inventory]{inline-size:min(820px,calc(100vw - 32
 /* The toolbar overlay never takes a click from the canvas or the heading below it. */
 .sankey-toolbar{pointer-events:none}
 @media(min-width:901px){.sankey-toolbar>*{pointer-events:auto}}
+
+/* Navigation rail (wide screens only): icons, names on hover and focus, names stay accessible. */
+.nav-toggle{display:grid;place-items:center;inline-size:44px;block-size:44px;min-block-size:44px;margin-block-start:12px;padding:0;border-radius:8px}
+.nav-toggle svg{inline-size:20px;block-size:20px}
+@media(min-width:761px){
+.app-shell:has(.sidebar[data-collapsed=true]){grid-template-columns:72px minmax(0,1fr)}
+.app-shell .sidebar[data-collapsed=true]{padding:20px 12px;overflow:visible;align-items:center}
+.sidebar[data-collapsed=true] .brand span,.sidebar[data-collapsed=true] .nav-group>p,.sidebar[data-collapsed=true] .nav-planned small{display:none}
+.sidebar[data-collapsed=true] .dashboard-nav a,.sidebar[data-collapsed=true] .nav-planned{position:relative;justify-content:center;inline-size:48px;padding:10px}
+.sidebar[data-collapsed=true] .nav-text{position:absolute;inline-size:1px;block-size:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.sidebar[data-collapsed=true] .nav-planned span{display:none}
+.sidebar[data-collapsed=true] .dashboard-nav a::after{content:attr(data-label) / "";position:absolute;z-index:20;inset-inline-start:calc(100% + 10px);inset-block-start:50%;translate:0 -50%;inline-size:max-content;padding:5px 9px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;font-weight:500;opacity:0;pointer-events:none;transition:opacity .12s}
+.sidebar[data-collapsed=true] .dashboard-nav a:hover::after,.sidebar[data-collapsed=true] .dashboard-nav a:focus-visible::after{opacity:1}
+.sidebar[data-collapsed=true] .sidebar-bottom{font-size:0;inline-size:48px;text-align:center}
+.sidebar[data-collapsed=true] .sidebar-bottom small{display:none}
+}
+@media(max-width:760px){.nav-toggle{display:none}}
+@media(prefers-reduced-motion:reduce){.sidebar .dashboard-nav a::after{transition:none}}

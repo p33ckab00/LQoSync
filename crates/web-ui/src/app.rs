@@ -160,10 +160,23 @@ fn Dashboard(session: RwSignal<Option<Principal>>) -> impl IntoView {
     });
     let studio_memory = expect_context::<crate::topology_studio::StudioMemory>().0;
     let signing_out = RwSignal::new(false);
+    // The navigation rail: the choice of the operator, else a rail on the Topology canvas only.
+    let nav_choice = RwSignal::new(saved_nav_choice());
+    let collapsed = move || {
+        nav_choice
+            .get()
+            .unwrap_or_else(|| matches!(page.get(), crate::route_model::Page::Topology { .. }))
+    };
     view! {
       <div class="app-shell">
-        <aside class="sidebar">
+        <aside class="sidebar" data-collapsed=move||collapsed().to_string()>
           <Brand compact=true/>
+          <button type="button" class="nav-toggle quiet" aria-expanded=move||(!collapsed()).to_string()
+            aria-label=move||if collapsed(){"Expand navigation"}else{"Collapse navigation"}
+            title=move||if collapsed(){"Expand navigation"}else{"Collapse navigation"}
+            on:click=move|_|{let next=!collapsed();nav_choice.set(Some(next));save_nav_choice(next);}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d=move||if collapsed(){"M9 6l6 6-6 6"}else{"M15 6l-6 6 6 6"}/></svg>
+          </button>
           <Navigation/>
           <div class="sidebar-bottom">
             <span class="service-dot" class:current=move||data.with(|d|d.as_ref().is_some_and(|v|!v.stale))></span>
@@ -255,4 +268,23 @@ pub fn App() -> impl IntoView {
         loading.set(false);
     });
     view! {<a class="skip" href="#main">"Skip to content"</a><Show when=move||!loading.get() fallback=||view!{<main id="main" class="boot" role="status">"Loading LQoSync…"</main>}><Show when=move||session.get().is_some() fallback=move||view!{<SignIn session/>}><Dashboard session/></Show></Show>}
+}
+
+const NAV_KEY: &str = "lqosync.nav.collapsed";
+
+/// The saved rail choice of this browser. `None`: the operator has not chosen.
+fn saved_nav_choice() -> Option<bool> {
+    let value = web_sys::window()?
+        .local_storage()
+        .ok()??
+        .get_item(NAV_KEY)
+        .ok()??;
+    Some(value == "true")
+}
+
+fn save_nav_choice(collapsed: bool) {
+    // A browser without storage keeps the choice for this page only.
+    if let Some(s) = web_sys::window().and_then(|w| w.local_storage().ok().flatten()) {
+        let _ = s.set_item(NAV_KEY, if collapsed { "true" } else { "false" });
+    }
 }

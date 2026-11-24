@@ -82,13 +82,13 @@ fn NavLink(
     active: Signal<bool>,
 ) -> impl IntoView {
     view! {
-      <a href=href class:nav-active=move||active.get() aria-current=move||active.get().then_some("page")
+      <a href=href data-label=label class:nav-active=move||active.get() aria-current=move||active.get().then_some("page")
         on:click=move|ev: web_sys::MouseEvent|{
           if ev.button()==0 && !(ev.ctrl_key()||ev.meta_key()||ev.shift_key()||ev.alt_key()) {
             ev.prevent_default();
             crate::route::go(href);
           }
-        }><Icon name=icon/>{label}</a>
+        }><Icon name=icon/><span class="nav-text">{label}</span></a>
     }
 }
 #[component]
