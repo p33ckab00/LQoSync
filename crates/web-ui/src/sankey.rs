@@ -6,7 +6,9 @@ use web_contract::topology::{TopologySummary, TopologyThroughput};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Metric {
-    LiveMbps,
+    /// Ribbon width: the configured (calculated) download capacity in Mbps.
+    Capacity,
+    /// No capacity data: ribbon width is the subscriber count.
     Subscribers,
 }
 
@@ -17,6 +19,8 @@ pub struct Segment {
     /// The WAN node ID of the stream. `None`: "WAN unknown".
     pub wan: Option<String>,
     pub value: f64,
+    /// The live download in Mbps on this stream, from a fresh host sample.
+    pub live: Option<f64>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -48,7 +52,12 @@ pub struct Ribbon {
     pub to: String,
     pub wan: Option<String>,
     pub value: f64,
+    pub live: Option<f64>,
     pub d: String,
+    /// The live band inside the ribbon: its height (live ÷ capacity, at most the full band)
+    /// and its path, top-aligned in the ribbon.
+    pub live_h: f64,
+    pub d_live: Option<String>,
     /// The lanes of a ribbon that skips columns: column, top, and height. A lane holds space
     /// in the column stack, so the ribbon never passes under a card.
     pub lanes: Vec<(usize, f64, f64)>,
@@ -94,20 +103,62 @@ pub fn input(summary: &TopologySummary, t: Option<&TopologyThroughput>) -> Input
         .filter(|n| n.kind == "wan")
         .map(|n| n.id.clone())
         .collect();
-    let (metric, mut segments) = match t.filter(|t| !t.stale) {
-        Some(t) => (
-            Metric::LiveMbps,
-            t.flows
+    let capacity = |n: &web_contract::topology::Node| {
+        n.calculated_mbps
+            .or(n.exported_mbps)
+            .map(|m| m[0])
+            .filter(|v| v.is_finite())
+            .map(|v| v.max(0.0))
+    };
+    let live_flows: &[web_contract::topology::FlowThroughput] =
+        t.filter(|t| !t.stale).map_or(&[], |t| &t.flows[..]);
+    let (metric, mut segments) = if summary.nodes.iter().any(|n| capacity(n).is_some()) {
+        let find = |id: &str| summary.nodes.iter().find(|x| x.id == id);
+        // The WAN of a node: the node itself or its nearest WAN ancestor.
+        let tree_wan = |n: &web_contract::topology::Node| {
+            let mut at = Some(n);
+            for _ in 0..=summary.nodes.len() {
+                let x = at?;
+                if x.kind == "wan" {
+                    return Some(x.id.clone());
+                }
+                at = x.parent.as_deref().and_then(find);
+            }
+            None
+        };
+        let mut segments: Vec<Segment> = Vec::new();
+        for n in &summary.nodes {
+            let Some(p) = n.parent.as_deref().and_then(find) else {
+                continue;
+            };
+            let (from, to, wan) = (card_of(p), card_of(n), tree_wan(n));
+            if from == to {
+                continue;
+            }
+            let value = capacity(n).unwrap_or(0.0);
+            match segments
+                .iter_mut()
+                .find(|s| s.from == from && s.to == to && s.wan == wan)
+            {
+                Some(s) => s.value += value,
+                None => segments.push(Segment {
+                    from: from.to_string(),
+                    to: to.to_string(),
+                    wan,
+                    value,
+                    live: None,
+                }),
+            }
+        }
+        for s in &mut segments {
+            s.live = live_flows
                 .iter()
-                .map(|f| Segment {
-                    from: f.from.clone(),
-                    to: f.to.clone(),
-                    wan: f.wan.clone(),
-                    value: f.down_bps as f64 / 1_000_000.0,
-                })
-                .collect::<Vec<_>>(),
-        ),
-        None => (
+                .find(|f| f.from == s.from && f.to == s.to && f.wan == s.wan)
+                .map(|f| f.down_bps as f64 / 1_000_000.0);
+        }
+        (Metric::Capacity, segments)
+    } else {
+        (
             Metric::Subscribers,
             summary
                 .flows
@@ -117,9 +168,10 @@ pub fn input(summary: &TopologySummary, t: Option<&TopologyThroughput>) -> Input
                     to: f.to.clone(),
                     wan: None,
                     value: f.subscribers as f64,
+                    live: None,
                 })
                 .collect(),
-        ),
+        )
     };
     // Each group card feeds the tier of its access type with everything that enters it.
     let mut tiers: Vec<(String, String)> = Vec::new();
@@ -143,12 +195,19 @@ pub fn input(summary: &TopologySummary, t: Option<&TopologyThroughput>) -> Input
                 .iter_mut()
                 .find(|e| &e.from == group && e.wan == s.wan)
             {
-                Some(e) => e.value += s.value,
+                Some(e) => {
+                    e.value += s.value;
+                    e.live = match (e.live, s.live) {
+                        (None, None) => None,
+                        (a, b) => Some(a.unwrap_or(0.0) + b.unwrap_or(0.0)),
+                    };
+                }
                 None => extra.push(Segment {
                     from: group.clone(),
                     to: tier.clone(),
                     wan: s.wan.clone(),
                     value: s.value,
+                    live: s.live,
                 }),
             }
         }
@@ -391,35 +450,46 @@ pub fn layout(input: &Input, order: &[String]) -> Sankey {
                 .map(|c| (c, lane_y[&(i, c)], h))
                 .collect();
             let lane_x = |c: usize| c as f64 * (CARD_W + COL_GAP);
-            // Top edge forward through each lane, bottom edge back.
-            let (mut d, mut cx, mut cy) = (format!("M{x0},{y0a}"), x0, y0a);
-            for &(c, ly, _) in &lanes {
-                let (lx, mid) = (lane_x(c), (cx + lane_x(c)) / 2.0);
-                d += &format!(" C{mid},{cy} {mid},{ly} {lx},{ly} L{},{ly}", lx + CARD_W);
-                (cx, cy) = (lx + CARD_W, ly);
-            }
-            let mid = (cx + x1) / 2.0;
-            d += &format!(" C{mid},{cy} {mid},{y1a} {x1},{y1a} L{x1},{}", y1a + h);
-            (cx, cy) = (x1, y1a + h);
-            for &(c, ly, _) in lanes.iter().rev() {
-                let (rx, mid) = (lane_x(c) + CARD_W, (cx + lane_x(c) + CARD_W) / 2.0);
-                d += &format!(
-                    " C{mid},{cy} {mid},{} {rx},{} L{},{}",
-                    ly + h,
-                    ly + h,
-                    rx - CARD_W,
-                    ly + h
-                );
-                (cx, cy) = (rx - CARD_W, ly + h);
-            }
-            let mid = (cx + x0) / 2.0;
-            d += &format!(" C{mid},{cy} {mid},{} {x0},{} Z", y0a + h, y0a + h);
+            // A band of height `h`, top-aligned in the ribbon: top edge forward through each
+            // lane, bottom edge back.
+            let shape = |h: f64| {
+                let (mut d, mut cx, mut cy) = (format!("M{x0},{y0a}"), x0, y0a);
+                for &(c, ly, _) in &lanes {
+                    let (lx, mid) = (lane_x(c), (cx + lane_x(c)) / 2.0);
+                    d += &format!(" C{mid},{cy} {mid},{ly} {lx},{ly} L{},{ly}", lx + CARD_W);
+                    (cx, cy) = (lx + CARD_W, ly);
+                }
+                let mid = (cx + x1) / 2.0;
+                d += &format!(" C{mid},{cy} {mid},{y1a} {x1},{y1a} L{x1},{}", y1a + h);
+                (cx, cy) = (x1, y1a + h);
+                for &(c, ly, _) in lanes.iter().rev() {
+                    let (rx, mid) = (lane_x(c) + CARD_W, (cx + lane_x(c) + CARD_W) / 2.0);
+                    d += &format!(
+                        " C{mid},{cy} {mid},{} {rx},{} L{},{}",
+                        ly + h,
+                        ly + h,
+                        rx - CARD_W,
+                        ly + h
+                    );
+                    (cx, cy) = (rx - CARD_W, ly + h);
+                }
+                let mid = (cx + x0) / 2.0;
+                d += &format!(" C{mid},{cy} {mid},{} {x0},{} Z", y0a + h, y0a + h);
+                d
+            };
+            let live_h = match s.live {
+                Some(l) if s.value > 0.0 && l.is_finite() => h * (l.max(0.0) / s.value).min(1.0),
+                _ => 0.0,
+            };
             Ribbon {
                 from: s.from.clone(),
                 to: s.to.clone(),
                 wan: s.wan.clone(),
                 value: s.value,
-                d,
+                live: s.live,
+                d: shape(h),
+                live_h,
+                d_live: (live_h > 0.0).then(|| shape(live_h)),
                 lanes,
             }
         })
@@ -464,6 +534,7 @@ mod tests {
             to: to.into(),
             wan: wan.map(str::to_string),
             value,
+            live: None,
         }
     }
 
@@ -473,7 +544,7 @@ mod tests {
             segments,
             edges: Vec::new(),
             wans: wans.iter().map(|w| w.to_string()).collect(),
-            metric: Metric::LiveMbps,
+            metric: Metric::Capacity,
         }
     }
 
@@ -700,41 +771,169 @@ mod tests {
     }
 
     #[test]
-    fn a_stale_sample_gives_subscriber_segments() {
-        let i = input(&summary(), Some(&throughput(true)));
-        assert_eq!(i.metric, Metric::Subscribers);
-        assert!(i.segments.iter().all(|s| s.wan.is_none()));
-        assert!(
-            i.segments
-                .contains(&seg("wan-1", "source:src-ppp", None, 7.0))
-        );
-        let none = input(&summary(), None);
-        assert_eq!(none.metric, Metric::Subscribers);
-        let fresh = input(&summary(), Some(&throughput(false)));
-        assert_eq!(fresh.metric, Metric::LiveMbps);
-        assert!(
-            fresh
-                .segments
-                .contains(&seg("wan-1", "source:src-ppp", Some("wan-1"), 40.0))
-        );
-        assert_eq!(fresh.wans, ["wan-1"]);
+    fn without_capacity_the_ribbons_count_subscribers() {
+        // `summary()` has no calculated or exported rates.
+        for t in [None, Some(throughput(false)), Some(throughput(true))] {
+            let i = input(&summary(), t.as_ref());
+            assert_eq!(i.metric, Metric::Subscribers);
+            assert!(
+                i.segments
+                    .iter()
+                    .all(|s| s.wan.is_none() && s.live.is_none())
+            );
+            assert!(
+                i.segments
+                    .contains(&seg("wan-1", "source:src-ppp", None, 7.0))
+            );
+            assert!(
+                i.segments
+                    .contains(&seg("source:src-ppp", "tier:ppp", None, 7.0))
+            );
+        }
+    }
+
+    /// WAN 1 (1000 Mbps) and WAN 2 (500 Mbps) above two copies of router R (400 and 100 Mbps),
+    /// each above one instance of the PPP group G (300 and 100 Mbps).
+    fn capacity_summary() -> TopologySummary {
+        let node = |id: &str,
+                    parent: Option<&str>,
+                    kind: &str,
+                    source: Option<&str>,
+                    card: &str,
+                    mbps: f64|
+         -> Node {
+            serde_json::from_value(json!({"id": id, "name": id, "parent": parent, "kind": kind,
+                "source_id": source, "capacity": {"mode": "automatic"}, "alias": false,
+                "calculated_mbps": [mbps, mbps / 2.0], "exported_mbps": null, "members": null, "card_id": card}))
+            .unwrap()
+        };
+        let source: Source = serde_json::from_value(
+            json!({"id": "src-ppp", "name": "src-ppp", "kind": "subscribers", "access": "ppp"}),
+        )
+        .unwrap();
+        TopologySummary {
+            nodes: vec![
+                node("wan-1", None, "wan", None, "", 1000.0),
+                node("wan-2", None, "wan", None, "", 500.0),
+                node("r1", Some("wan-1"), "intermediate", None, "router:r", 400.0),
+                node("r2", Some("wan-2"), "intermediate", None, "router:r", 100.0),
+                node(
+                    "g1",
+                    Some("r1"),
+                    "group",
+                    Some("src-ppp"),
+                    "source:g",
+                    300.0,
+                ),
+                node(
+                    "g2",
+                    Some("r2"),
+                    "group",
+                    Some("src-ppp"),
+                    "source:g",
+                    100.0,
+                ),
+            ],
+            sources: vec![source],
+            ..Default::default()
+        }
+    }
+
+    /// From, to, WAN, capacity, live.
+    type Stream<'a> = (&'a str, &'a str, Option<&'a str>, f64, Option<f64>);
+
+    fn flows(i: &Input) -> Vec<Stream<'_>> {
+        i.segments
+            .iter()
+            .map(|s| {
+                (
+                    s.from.as_str(),
+                    s.to.as_str(),
+                    s.wan.as_deref(),
+                    s.value,
+                    s.live,
+                )
+            })
+            .collect()
     }
 
     #[test]
-    fn groups_feed_their_service_tier_card() {
-        let i = input(&summary(), Some(&throughput(false)));
+    fn ribbons_carry_the_configured_capacity_of_each_wan() {
+        let i = input(&capacity_summary(), None);
+        assert_eq!(i.metric, Metric::Capacity);
+        let got = flows(&i);
+        for want in [
+            ("wan-1", "router:r", Some("wan-1"), 400.0, None),
+            ("wan-2", "router:r", Some("wan-2"), 100.0, None),
+            ("router:r", "source:g", Some("wan-1"), 300.0, None),
+            ("router:r", "source:g", Some("wan-2"), 100.0, None),
+            ("source:g", "tier:ppp", Some("wan-1"), 300.0, None),
+            ("source:g", "tier:ppp", Some("wan-2"), 100.0, None),
+        ] {
+            assert!(got.contains(&want), "{want:?} in {got:?}");
+        }
+        assert_eq!(got.len(), 6);
+    }
+
+    #[test]
+    fn live_traffic_attaches_to_its_capacity_ribbon() {
+        let f = |from: &str, to: &str, mbps: u64| FlowThroughput {
+            from: from.into(),
+            to: to.into(),
+            wan: Some("wan-1".into()),
+            down_bps: mbps * 1_000_000,
+            up_bps: 0,
+        };
+        let mut t = TopologyThroughput {
+            updated: 1,
+            complete: true,
+            flows: vec![f("wan-1", "router:r", 120), f("router:r", "source:g", 90)],
+            ..Default::default()
+        };
+        let with_live = input(&capacity_summary(), Some(&t));
+        let got = flows(&with_live);
+        assert!(got.contains(&("wan-1", "router:r", Some("wan-1"), 400.0, Some(120.0))));
+        assert!(got.contains(&("source:g", "tier:ppp", Some("wan-1"), 300.0, Some(90.0))));
+        assert!(got.contains(&("wan-2", "router:r", Some("wan-2"), 100.0, None)));
+        t.stale = true;
+        let i = input(&capacity_summary(), Some(&t));
+        assert_eq!(
+            i.metric,
+            Metric::Capacity,
+            "a stale sample keeps the capacity"
+        );
+        assert!(i.segments.iter().all(|s| s.live.is_none()));
+    }
+
+    #[test]
+    fn the_live_band_fills_its_share_of_the_ribbon() {
+        let mut input = live(
+            &["a", "b", "c"],
+            vec![seg("a", "b", None, 400.0), seg("a", "c", None, 50.0)],
+            &[],
+        );
+        input.metric = Metric::Capacity;
+        input.segments[0].live = Some(100.0);
+        input.segments[1].live = Some(80.0);
+        let s = layout(&input, &[]);
+        let scale = MAX_BAND / 450.0;
+        let r = |to: &str| s.ribbons.iter().find(|r| r.to == to).unwrap();
         assert!(
-            i.segments
-                .contains(&seg("source:src-ppp", "tier:ppp", Some("wan-1"), 40.0))
+            (r("b").live_h - 400.0 * scale / 4.0).abs() < 1e-9,
+            "a quarter of the ribbon"
         );
         assert!(
-            i.segments
-                .contains(&seg("source:src-dhcp", "tier:dhcp", Some("wan-1"), 12.0))
+            (r("c").live_h - 50.0 * scale).abs() < 1e-9,
+            "more live than capacity fills it once"
         );
-        assert!(i.cards.contains(&"tier:ppp".to_string()));
-        assert!(
-            !i.cards.contains(&"tier:hotspot".to_string()),
-            "only used tiers"
+        assert!(r("b").d_live.as_deref().is_some_and(|d| d.ends_with('Z')));
+        let none = layout(
+            &live(&["a", "b"], vec![seg("a", "b", None, 10.0)], &[]),
+            &[],
+        );
+        assert_eq!(
+            (none.ribbons[0].live_h, none.ribbons[0].d_live.is_none()),
+            (0.0, true)
         );
     }
 

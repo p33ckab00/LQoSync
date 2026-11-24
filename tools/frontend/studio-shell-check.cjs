@@ -39,7 +39,7 @@ const fs=require('node:fs');
     async function card_data_survives_shell_change(){
       assert.deepEqual(await canvas.locator('.canvas-node strong').allInnerTexts(),['WAN North','PPPoE access','WAN South','DHCP access']);
       assert.match(await canvas.getByRole('button',{name:/^PPPoE access,/}).innerText(),/600 \/ 300 Mbps\s*5 subscribers/);
-      assert.equal(await canvas.locator('path.sankey-ribbon').count(),4,'live WAN streams into the groups and the service tiers');
+      assert.equal(await canvas.locator('path.sankey-ribbon').count(),6,'capacity streams into the groups and the service tiers');
       const card=await canvas.getByRole('button',{name:/^WAN North,/}).boundingBox();
       const heading=await page.locator('.topology-head').boundingBox();
       const evidence=await page.locator('.canvas-evidence').boundingBox();

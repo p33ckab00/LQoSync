@@ -273,6 +273,18 @@ pub(crate) fn Canvas(
                 .map_or(crate::sankey::Metric::Subscribers, |(i, _)| i.metric)
         })
     };
+    // The live download of a card: the live streams into it, or out of it in the first column.
+    let live_of = move |id: &str| {
+        sk.with(|k| {
+            let (_, o) = k.as_ref()?;
+            let into = o.ribbons.iter().any(|r| r.to == id);
+            o.ribbons
+                .iter()
+                .filter(|r| if into { r.to == id } else { r.from == id })
+                .filter_map(|r| r.live)
+                .reduce(|a, b| a + b)
+        })
+    };
     let box_of = move |id: &str| {
         sk.with(|k| {
             k.as_ref()
@@ -539,6 +551,21 @@ pub(crate) fn Canvas(
         let height = move || id.with_value(|i| box_of(i)).map_or(CARD_H, |b| b.h);
         let column = move || id.with_value(|i| box_of(i)).map_or(0, |b| b.column);
         let value = move || id.with_value(|i| box_of(i)).map(|b| b.value);
+        let card_live = move || id.with_value(|i| live_of(i));
+        // A WAN card leads with the configured capacity of the WAN; the ribbon shows the share.
+        let configured = match n.capacity {
+            Capacity::Fixed { down_mbps, .. } => Some(down_mbps as f64),
+            _ => n.calculated_mbps.or(n.exported_mbps).map(|m| m[0]),
+        };
+        let is_wan = n.kind == "wan";
+        let wan_lines = move || wan_card_lines(configured, value().unwrap_or(0.0), card_live());
+        let headline = move || {
+            if is_wan && metric() == crate::sankey::Metric::Capacity {
+                wan_lines().0
+            } else {
+                value_text(value(), metric())
+            }
+        };
         // A WAN card wears the color of its stream.
         let wan_id = (n.kind == "wan").then(|| n.id.clone());
         let tone = {
@@ -556,7 +583,7 @@ pub(crate) fn Canvas(
             data-column=move||column().to_string() data-tone=move||wan_id.is_some().then(&tone)
             aria-pressed=move||is_selected().to_string()
             aria-describedby=move||(is_selected()&&popover.get()).then_some("sankey-details")
-            aria-label=move||format!("{}, {}, {}",card_name,value_text(value(),metric()),label_rest)
+            aria-label=move||format!("{}, {}, {}",card_name,headline(),label_rest)
             style:left=move||format!("{}px",pos()[0]) style:top=move||format!("{}px",pos()[1])
             style:height=move||format!("{}px",height())
             on:click=move|_|{
@@ -576,7 +603,13 @@ pub(crate) fn Canvas(
               {excluded.map(|t|view!{<span class="canvas-node-router">{t}</span>})}
             </span>
             <strong>{n.name.clone()}</strong>
-            <span class="sankey-value">{move||value_text(value(),metric())}</span>
+            <span class="sankey-value">{headline}</span>
+            {move||(is_wan && metric()==crate::sankey::Metric::Capacity).then(||{
+              let (_,allocated,percent,_)=wan_lines();
+              let line=percent.map_or(allocated.clone(),|p|format!("{allocated} · {p}"));
+              view!{<span class="sankey-allocation">{line}</span>}
+            })}
+            {move||live_text(card_live()).map(|t|view!{<span class="sankey-live-text">{t}</span>})}
             <span class="canvas-node-meta"><span>{rate}</span>{members.map(|m|view!{<span>{m}</span>})}</span>
             {warning.map(|t|view!{<span class="canvas-node-warning">{t}</span>})}
           </button>
@@ -646,6 +679,9 @@ pub(crate) fn Canvas(
                       selected_link.set(Some((from.clone(),to.clone(),wan.clone())));
                       popover.set(true);
                     }/>
+                  // The live download inside the capacity ribbon. It takes no click.
+                  {r.d_live.clone().map(|d|view!{<path class="sankey-live" class:dim=dim d=d data-tone=tone.clone()
+                    data-from=r.from.clone() data-to=r.to.clone()/>})}
                 }
             })
             .collect_view()
@@ -683,23 +719,24 @@ pub(crate) fn Canvas(
                 .ribbons
                 .iter()
                 .find(|r| r.from == from && r.to == to && r.wan == wan)?;
-            let rate = match input.metric {
-                crate::sankey::Metric::LiveMbps => {
-                    let up = live.with(|t| {
-                        t.as_ref().and_then(|t| {
-                            t.flows
-                                .iter()
-                                .find(|f| f.from == from && f.to == to && f.wan == wan)
-                                .map(|f| f.up_bps)
-                        })
-                    });
-                    format!(
-                        "{} down · {} up",
-                        value_text(Some(r.value), input.metric),
-                        value_text(up.map(|u| u as f64 / 1_000_000.0), input.metric)
-                    )
+            let up = live.with(|t| {
+                t.as_ref().filter(|t| !t.stale).and_then(|t| {
+                    t.flows
+                        .iter()
+                        .find(|f| f.from == from && f.to == to && f.wan == wan)
+                        .map(|f| f.up_bps as f64 / 1_000_000.0)
+                })
+            });
+            let rate = match (input.metric, r.live) {
+                (crate::sankey::Metric::Capacity, Some(down)) => format!(
+                    "{} capacity · {down:.0} Mbps down · {:.0} Mbps up live",
+                    value_text(Some(r.value), input.metric),
+                    up.unwrap_or(0.0)
+                ),
+                (crate::sankey::Metric::Capacity, None) => {
+                    format!("{} capacity", value_text(Some(r.value), input.metric))
                 }
-                crate::sankey::Metric::Subscribers => value_text(Some(r.value), input.metric),
+                (crate::sankey::Metric::Subscribers, _) => value_text(Some(r.value), input.metric),
             };
             return Some(view! {
               <div class="sankey-popover" id="sankey-details" role="dialog" aria-label="Stream details"
@@ -711,16 +748,22 @@ pub(crate) fn Canvas(
         let id = selected.get()?;
         let c = at(&id)?;
         // The streams into the card, or out of it for a first-column card, summed for each WAN.
-        let mut lines: Vec<(Option<String>, f64)> = Vec::new();
+        let mut lines: Vec<(Option<String>, f64, Option<f64>)> = Vec::new();
         let into = out.ribbons.iter().any(|r| r.to == id);
         for r in out
             .ribbons
             .iter()
             .filter(|r| if into { r.to == id } else { r.from == id })
         {
-            match lines.iter_mut().find(|(w, _)| *w == r.wan) {
-                Some((_, v)) => *v += r.value,
-                None => lines.push((r.wan.clone(), r.value)),
+            match lines.iter_mut().find(|(w, _, _)| *w == r.wan) {
+                Some((_, v, l)) => {
+                    *v += r.value;
+                    *l = match (*l, r.live) {
+                        (None, None) => None,
+                        (a, b) => Some(a.unwrap_or(0.0) + b.unwrap_or(0.0)),
+                    };
+                }
+                None => lines.push((r.wan.clone(), r.value, r.live)),
             }
         }
         let name = name_of(&id);
@@ -729,10 +772,11 @@ pub(crate) fn Canvas(
           <div class="sankey-popover" id="sankey-details" role="dialog" aria-label=format!("{name} details")
             style:left=format!("{}px",c.x+c.w+MARGIN+12.0) style:top=format!("{}px",c.y+SANKEY_TOP)>
             <strong>{name.clone()}</strong>
-            <p>{value_text(Some(c.value),input.metric)}</p>
-            <ul>{lines.into_iter().map(|(w,v)|{
+            <p>{format!("{}{}",value_text(Some(c.value),input.metric),live_of(&id).and_then(|l|live_text(Some(l))).map(|t|format!(" · {t}")).unwrap_or_default())}</p>
+            <ul>{lines.into_iter().map(|(w,v,l)|{
               let tone=wan_tone(&input.wans,w.as_deref());
-              view!{<li><span class="sankey-swatch" data-tone=tone></span>{format!("{}: {}",wan_name(w.as_deref()),value_text(Some(v),input.metric))}</li>}
+              let live=live_text(l).map(|t|format!(" · {t}")).unwrap_or_default();
+              view!{<li><span class="sankey-swatch" data-tone=tone></span>{format!("{}: {}{live}",wan_name(w.as_deref()),value_text(Some(v),input.metric))}</li>}
             }).collect_view()}</ul>
             {(!tier).then(||view!{<button type="button" class="quiet" on:click=move|_|{popover.set(false);open(Panel::Node);}>"Open full settings"</button>})}
           </div>
@@ -940,7 +984,7 @@ pub(crate) fn Canvas(
 
     view! {
       <section class="canvas-shell" aria-label="Topology canvas workspace"
-        data-metric=move||match metric(){crate::sankey::Metric::LiveMbps=>"live",crate::sankey::Metric::Subscribers=>"subscribers"}>
+        data-metric=move||match metric(){crate::sankey::Metric::Capacity=>"capacity",crate::sankey::Metric::Subscribers=>"subscribers"}>
         <div class="canvas-bar">
           <p class="canvas-facts">{move||data.with(|d|d.as_ref().map(|s|{
             let wans=s.nodes.iter().filter(|n|n.kind=="wan").count();
@@ -975,7 +1019,7 @@ pub(crate) fn Canvas(
           <ul class="sankey-legend" aria-label="WAN streams">
             {move||sk.with(|k|k.as_ref().map(|(i,o)|{
               let mut shown:Vec<Option<String>>=i.wans.iter().filter(|w|o.ribbons.iter().any(|r|r.wan.as_deref()==Some(w.as_str()))).cloned().map(Some).collect();
-              if o.ribbons.iter().any(|r|r.wan.is_none()) && i.metric==crate::sankey::Metric::LiveMbps { shown.push(None); }
+              if o.ribbons.iter().any(|r|r.wan.is_none()) && i.metric==crate::sankey::Metric::Capacity { shown.push(None); }
               shown.into_iter().map(|w|{
                 let tone=wan_tone(&i.wans,w.as_deref());
                 view!{<li><span class="sankey-swatch" data-tone=tone aria-hidden="true"></span>{wan_name(w.as_deref())}</li>}

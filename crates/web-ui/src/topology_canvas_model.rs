@@ -389,16 +389,45 @@ pub(crate) fn wan_tone(wans: &[String], wan: Option<&str>) -> String {
     }
 }
 
-/// The Sankey value of a card or stream as text. A card without a value has no live data.
+/// The Sankey value of a card or stream as text: its configured capacity, or its subscribers.
 pub(crate) fn value_text(value: Option<f64>, metric: crate::sankey::Metric) -> String {
     use crate::sankey::Metric;
     match (value, metric) {
-        (None, _) => "No live data".into(),
-        (Some(v), Metric::LiveMbps) if v <= 0.0 => "No live data".into(),
-        (Some(v), Metric::LiveMbps) if v < 10.0 => format!("{v:.1} Mbps"),
-        (Some(v), Metric::LiveMbps) => format!("{v:.0} Mbps"),
+        (None, _) => "No data".into(),
+        (Some(v), Metric::Capacity) if v <= 0.0 => "No capacity".into(),
+        (Some(v), Metric::Capacity) if v < 10.0 => format!("{v:.1} Mbps"),
+        (Some(v), Metric::Capacity) => format!("{v:.0} Mbps"),
         (Some(v), Metric::Subscribers) => format!("{v:.0} sub{}", if v == 1.0 { "" } else { "s" }),
     }
+}
+
+/// The lines of a WAN card, most important first: the configured capacity of the WAN, the
+/// capacity that its children get (the ribbon width), that share in percent, and the live
+/// download. The rest of the configured capacity is configuration headroom, not free bandwidth,
+/// so the card does not show it.
+pub(crate) fn wan_card_lines(
+    configured: Option<f64>,
+    allocated: f64,
+    live: Option<f64>,
+) -> (String, String, Option<String>, Option<String>) {
+    let primary = match configured {
+        Some(c) if c > 0.0 => format!("{c:.0} Mbps"),
+        _ => "No capacity".to_string(),
+    };
+    let percent = configured
+        .filter(|c| *c > 0.0)
+        .map(|c| format!("{:.0}% allocated", allocated / c * 100.0));
+    (
+        primary,
+        format!("{allocated:.0} Mbps allocated"),
+        percent,
+        live_text(live),
+    )
+}
+
+/// The live download of a card or stream as text, when a fresh host sample has it.
+pub(crate) fn live_text(live: Option<f64>) -> Option<String> {
+    live.map(|v| format!("{v:.0} Mbps live"))
 }
 
 /// The live chip: text, state (`ok`, `warn`, `muted`), and the reason in its tooltip.
@@ -410,7 +439,7 @@ pub(crate) fn live_chip(
         Some(t) if !t.stale && t.complete => (
             format!("Live · {}s ago", now.saturating_sub(t.updated)),
             "ok",
-            "Ribbon width: live download, the exact sum of the hosts on each WAN.".into(),
+            "Inner band: live download, the exact sum of the hosts on each WAN.".into(),
         ),
         Some(t) if !t.stale => (
             "Partial".into(),
@@ -425,10 +454,10 @@ pub(crate) fn live_chip(
             },
         ),
         _ => (
-            "Subscribers, not live".into(),
+            "No live traffic".into(),
             "muted",
             t.and_then(|t| t.reason.clone())
-                .unwrap_or_else(|| "No host sample. Ribbon width: subscriber count.".into()),
+                .unwrap_or_else(|| "No host sample. The inner live band is off.".into()),
         ),
     }
 }
@@ -437,7 +466,7 @@ pub(crate) fn live_chip(
 pub(crate) fn unknown_stream(metric: crate::sankey::Metric) -> &'static str {
     match metric {
         crate::sankey::Metric::Subscribers => "All WANs",
-        crate::sankey::Metric::LiveMbps => "WAN unknown",
+        crate::sankey::Metric::Capacity => "WAN unknown",
     }
 }
 
@@ -850,10 +879,12 @@ mod tests {
         assert_eq!(wan_tone(&wans, Some("wan2")), "1");
         assert_eq!(wan_tone(&wans, Some("other")), "unknown");
         assert_eq!(wan_tone(&wans, None), "unknown");
-        assert_eq!(value_text(Some(412.4), Metric::LiveMbps), "412 Mbps");
-        assert_eq!(value_text(Some(2.25), Metric::LiveMbps), "2.2 Mbps");
-        assert_eq!(value_text(Some(0.0), Metric::LiveMbps), "No live data");
-        assert_eq!(value_text(None, Metric::Subscribers), "No live data");
+        assert_eq!(value_text(Some(412.4), Metric::Capacity), "412 Mbps");
+        assert_eq!(value_text(Some(2.25), Metric::Capacity), "2.2 Mbps");
+        assert_eq!(value_text(Some(0.0), Metric::Capacity), "No capacity");
+        assert_eq!(value_text(None, Metric::Subscribers), "No data");
+        assert_eq!(live_text(Some(80.4)).as_deref(), Some("80 Mbps live"));
+        assert_eq!(live_text(None), None);
         assert_eq!(value_text(Some(1.0), Metric::Subscribers), "1 sub");
         assert_eq!(value_text(Some(21.0), Metric::Subscribers), "21 subs");
         assert_eq!(tier_name("tier:dhcp"), Some("IPoE / DHCP"));
@@ -885,7 +916,7 @@ mod tests {
         assert_eq!(
             live_chip(Some(&stale), 100),
             (
-                "Subscribers, not live".into(),
+                "No live traffic".into(),
                 "muted",
                 "the host sample is old".into()
             )
@@ -898,6 +929,35 @@ mod tests {
         use crate::sankey::Metric;
         // Subscriber counts have no WAN split: the stream is every WAN, not an unknown one.
         assert_eq!(unknown_stream(Metric::Subscribers), "All WANs");
-        assert_eq!(unknown_stream(Metric::LiveMbps), "WAN unknown");
+        assert_eq!(unknown_stream(Metric::Capacity), "WAN unknown");
+    }
+
+    #[test]
+    fn a_wan_card_leads_with_its_configured_capacity() {
+        let lines = wan_card_lines(Some(1000.0), 400.0, Some(275.4));
+        assert_eq!(
+            lines,
+            (
+                "1000 Mbps".to_string(),
+                "400 Mbps allocated".to_string(),
+                Some("40% allocated".to_string()),
+                Some("275 Mbps live".to_string())
+            )
+        );
+        // No configured capacity: the allocation stays, with no percent.
+        assert_eq!(
+            wan_card_lines(None, 400.0, None),
+            (
+                "No capacity".to_string(),
+                "400 Mbps allocated".to_string(),
+                None,
+                None
+            )
+        );
+        assert_eq!(
+            wan_card_lines(Some(0.0), 0.0, None).2,
+            None,
+            "no percent of zero"
+        );
     }
 }

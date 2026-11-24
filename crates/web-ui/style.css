@@ -1202,3 +1202,8 @@ dialog.canvas-dialog[data-panel=inventory]{inline-size:min(820px,calc(100vw - 32
 .canvas-viewport.panning{cursor:grabbing}
 .canvas-viewport .sankey-card,.canvas-viewport .canvas-candidate,.canvas-viewport .sankey-popover{cursor:pointer}
 .topology-canvas-page .canvas-frame>.canvas-viewport.canvas-viewport{inset:0}
+/* Capacity ribbons: the solid band is the configured capacity, the bright inner band is the live download. */
+.canvas-wires path.sankey-live{fill:color-mix(in srgb,var(--tone) 75%,#fff);fill-opacity:.9;stroke:none;pointer-events:none}
+.canvas-wires path.sankey-live.dim{opacity:.22}
+.sankey-live-text{font-size:12px;line-height:18px;font-variant-numeric:tabular-nums;color:var(--muted)}
+.sankey-allocation{font-size:13px;line-height:18px;font-weight:500;font-variant-numeric:tabular-nums;color:var(--text)}

@@ -268,3 +268,36 @@ does not read it.
 - Throughput endpoint: `crates/web-gateway/src/throughput.rs` on branch
   `claude/topology-studio-backend` (merged into `lqosync3` through
   `integration/topology-studio`).
+
+## 12. Changes after the first deploy (owner, 2026-11-24 evening)
+
+### 12.1 Infinite canvas
+
+The first build used a scroll box. The owner asked for a true infinite canvas.
+
+- The viewport fills the canvas frame. It has no scrollbars and no edge.
+- A drag on the empty background pans. The drag starts after 4 px, so a click stays a click.
+- The mouse wheel zooms at the cursor (owner decision). A two-finger pinch zooms on touch screens.
+- Arrow keys pan. Plus and minus zoom. The key 0 runs "Fit view".
+- The dot grid follows the pan and the zoom.
+- "Fit view" keeps clear of the floating controls. It runs when the page opens, and again after a
+  window resize while the view shows the last fit.
+
+### 12.2 Capacity ribbons with a live band
+
+This change replaces goal 2 and section 6.3. The ribbon width is now the configured capacity.
+
+- A ribbon from a WAN to the next card is the calculated download capacity (`calculated_mbps`,
+  else `exported_mbps`) of the node instance below that WAN. This is the share of the WAN that
+  the percent or fixed capacity gives.
+- A ribbon from a card to its child is the calculated capacity of the child instance. Each WAN
+  keeps its own stream to the last column.
+- Without any capacity data, the ribbons count subscribers.
+- The live download is a bright band inside the ribbon, top-aligned. Its height is live ÷
+  capacity of the band, at most the full band. Without a fresh host sample, no band shows and the
+  chip says "No live traffic". The capacity ribbons do not change.
+- Cards show the capacity, and a "N Mbps live" line when a sample exists.
+- A WAN card shows, most important first (owner): the configured capacity of the WAN
+  (`1000 Mbps`), the allocated child capacity (`400 Mbps allocated`, the ribbon width), that share
+  in percent (`40% allocated`), and the live download when telemetry exists. The card does not
+  show the unallocated rest: it is configuration headroom, not free Internet bandwidth.

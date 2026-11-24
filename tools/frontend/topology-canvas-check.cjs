@@ -26,12 +26,19 @@ const fs=require('node:fs');
     const canvas=page.getByRole('region',{name:/^Topology canvas\./});
     const cards=canvas.locator('.canvas-node');await cards.nth(3).waitFor();
     assert.equal(await cards.count(),4,'one card for each node: the two PPPoE placements are one card');
-    // Sankey: filled ribbons, one for each WAN stream between two cards (live fixture sample).
-    const ribbons=canvas.locator('path.sankey-ribbon');await ribbons.nth(3).waitFor();
-    assert.equal(await ribbons.count(),4,'two WAN streams into the groups and two into the service tiers');
+    // Sankey: one filled ribbon for each WAN stream between two cards. Width = configured capacity.
+    const ribbons=canvas.locator('path.sankey-ribbon');await ribbons.nth(5).waitFor();
+    assert.equal(await ribbons.count(),6,'three capacity streams into the groups and three into the service tiers');
+    await canvas.locator('path.sankey-live').first().waitFor({state:'attached'});
+    assert.ok(await canvas.locator('path.sankey-live').count()>=1,'a live band inside the capacity ribbons');
+    assert.match(await canvas.locator('path.sankey-ribbon[data-from="tm-node-wan-north"]').getAttribute('d'),/Z$/);
     for(const [d,wan] of await ribbons.evaluateAll(ps=>ps.map(p=>[p.getAttribute('d'),p.dataset.wan]))){
       assert.match(d,/Z$/,'a ribbon is a closed shape');assert.ok(wan,'each ribbon names its WAN');}
-    assert.equal(await page.locator('[data-metric]').getAttribute('data-metric'),'live');
+    assert.equal(await page.locator('[data-metric]').getAttribute('data-metric'),'capacity');
+    // A WAN card: configured capacity first, then the allocated share (the ribbon) and its percent.
+    const wanText=await canvas.locator('.sankey-card[data-node-id="tm-node-wan-north"]').innerText();
+    assert.match(wanText,/1000 Mbps[\s\S]*400 Mbps allocated · 40% allocated/,wanText);
+    assert.match(await canvas.locator('.sankey-card[data-node-id="tm-node-wan-north"] .sankey-value').innerText(),/^1000 Mbps$/);
     const columns=await canvas.locator('.sankey-card').evaluateAll(cs=>Object.fromEntries(cs.map(c=>[c.dataset.nodeId,+c.dataset.column])));
     assert.deepEqual([columns['tm-node-wan-north'],columns['source:access-ppp'],columns['tier:ppp']],[0,1,2],'columns follow the paths');
     const boxes=await canvas.locator('.sankey-card').evaluateAll(cs=>cs.map(c=>c.getBoundingClientRect().toJSON()));
@@ -57,14 +64,15 @@ const fs=require('node:fs');
     assert.match(await partial.getAttribute('title'),/3 hosts have no subscriber/);
     await page.unroute('**/api/v1/topology/throughput');
     await rewrite(j=>{j.stale=true;j.complete=false;j.reason='the host sample is old';});
-    await chips.getByText('Subscribers, not live',{exact:true}).waitFor({timeout:12000});
-    assert.equal(await page.locator('[data-metric]').getAttribute('data-metric'),'subscribers');
-    await canvas.getByText('5 subs',{exact:true}).first().waitFor();
+    await chips.getByText('No live traffic',{exact:true}).waitFor({timeout:12000});
+    assert.equal(await page.locator('[data-metric]').getAttribute('data-metric'),'capacity','a stale sample keeps the capacity ribbons');
+    assert.equal(await canvas.locator('path.sankey-ribbon').count(),6);
+    assert.equal(await canvas.locator('path.sankey-live').count(),0,'no live band without a fresh sample');
     await page.unroute('**/api/v1/topology/throughput');
     await chips.getByText(/^Live · /).waitFor({timeout:12000});
     // A gateway that stops answering: the kept sample turns stale and never stays "Live".
     await page.route('**/api/v1/topology/throughput',r=>r.abort());
-    await chips.getByText('Subscribers, not live',{exact:true}).waitFor({timeout:12000});
+    await chips.getByText('No live traffic',{exact:true}).waitFor({timeout:12000});
     await page.unroute('**/api/v1/topology/throughput');
     await chips.getByText(/^Live · /).waitFor({timeout:12000});
     assert.equal(await page.getByText(/instance/i).count(),0,'the word instance never shows');
