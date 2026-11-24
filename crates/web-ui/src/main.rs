@@ -59,6 +59,8 @@ mod router_lists;
 mod routers;
 #[cfg(any(target_arch = "wasm32", test))]
 mod routers_model;
+#[cfg(any(target_arch = "wasm32", test))]
+mod sankey;
 #[cfg(target_arch = "wasm32")]
 mod subscriber_views;
 #[cfg(target_arch = "wasm32")]
